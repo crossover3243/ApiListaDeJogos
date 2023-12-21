@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Lista de Jogos</title>
+
+<body>
+
+<div class="container mt-4">
+  <h1>Adição de Jogos</h1>
+
+  <!-- Formulário para criar um novo jogo -->
+  <form id="form-jogo" class="mb-3">
+    <div class="form-group">
+      <label for="nome"  >Nome:</label>
+      <div class="col-5"> <input type="text" class="form-control" id="nome" name="nome"></div>
+      <div class="invalid-feedback"></div>
+    </div>
+   
+    <div class="form-group">
+      <label for="descricao" >Descrição:</label>     
+      <div class="col-5"><input type="text" class="form-control" id="descricao" name="descricao"></div>
+      <div class="invalid-feedback"></div>
+    </div>
+    
+    <div class="form-group">
+      <label for="produtora">Produtora:</label>
+      <div class="col-5"><input type="text" class="form-control" id="produtora" name="produtora"></div>
+      <div class="invalid-feedback"></div>
+    </div>
+    
+    <div class="form-group">
+        <label for="ano">Ano:</label>
+        <div class="col-5"><input type="number" class="form-control" id="ano" name="ano" min="1900" max="2099" step="1" value="2023"></div>
+        <div class="invalid-feedback"></div>
+      </div>
+    
+    <div class="form-group">
+      <label for="idadeMinima">Idade Mínima:</label>
+      <div class="col-5"><input type="number" class="form-control" id="idadeMinima" name="idadeMinima"></div>
+      <div class="invalid-feedback"></div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Salvar</button>
+    <button type="button" id="cancelar-edicao" class="btn btn-secondary">Cancelar</button>
+  </form>
+
+ <!-- Modal de Confirmação -->
+<div class="modal fade" id="confirmacaoExclusaoModal" tabindex="-1" role="dialog" aria-labelledby="confirmacaoExclusaoModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmacaoExclusaoModalLabel">Confirmação de Exclusão De Jogo</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Tem certeza que deseja excluir este jogo?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmarExclusaoModal">Confirmar Exclusão</button>
+      </div>
+    </div>
+  </div>
+</div>
+  
+
+  <hr>
+  <div class="container mt-4">
+    <h1>Lista de Jogos</h1>
+    <ul id="lista-jogos" class="list-group">
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/jquery.validation/1.16.0/jquery.validate.min.js"></script>
+<script src="js/script.js"></script>
+<script src="js/validacao.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+</body>
+</html>
