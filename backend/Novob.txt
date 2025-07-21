@@ -1,0 +1,125 @@
+<%@ LANGUAGE="VBSCRIPT" %>
+<%
+'-----------------------------------------------------------
+'-	Cadastro Grupo Autorização
+'-	Criação : 27/03/2025
+'-----------------------------------------------------------
+
+option explicit
+
+dim txt_subtitulo, sCodRetorno, sMsgRetorno
+
+server.ScriptTimeout = 1000000
+
+dim xml 
+dim i
+dim sUsuario, sSenha, sIP, sModulo, sSistema
+dim qtd_submodalidade, ind_tipo_reembolso
+dim ind_acao, ind_tipo, ind_habilitado
+
+sUsuario	        = Session("ace_usuario")
+sSenha		        = Session("ace_senha")
+sIP			        = Session("ace_ip")
+sModulo		        = Session("ace_modulo")
+sSistema	        = session("ace_sistema")
+txt_subtitulo		= Request.QueryString("PT")
+
+ind_acao 			= request("ind_acao")
+ind_tipo 			= request("ind_tipo")
+ind_tipo_reembolso  = request("ind_tipo_reembolso")
+qtd_submodalidade   = request("qtd_submodalidade")
+ind_habilitado		= "S"
+
+'----SUBMODALIDADES----
+
+xml = ""
+xml = xml & "<SUBMODALIDADE>"
+xml = xml & "<IND_ACAO>"    	   & ind_acao        	&"</IND_ACAO>"
+xml = xml & "<COD_USUARIO>" 	   & sUsuario        	& "</COD_USUARIO>"
+xml = xml & "<IND_TIPO>"    	   & ind_tipo        	& "</IND_TIPO>"
+xml = xml & "<IND_TIPO_REEMBOLSO>" & ind_tipo_reembolso & "</IND_TIPO_REEMBOLSO>"
+xml = xml & "<QTD_SUBMODALIDADE>"  & qtd_submodalidade  & "</QTD_SUBMODALIDADE>"
+
+for i = 1 to qtd_submodalidade
+	if request("nome_submodalidade_" & i ) <> "" then
+	
+		if request("ind_habilitado_" & i ) = "" then
+			ind_habilitado = "N"
+		end if
+	
+		xml = xml & "<DADOS_" & i&">"
+		xml = xml & "<IND_TIPO_SUBMODALIDADE_" & i&">" & request("ind_tipo_submodalidade_" & i ) & "</IND_TIPO_SUBMODALIDADE_" & i&">"
+		xml = xml & "<NOME_SUBMODALIDADE_" & i&">" & request("nome_submodalidade_" & i ) & "</NOME_SUBMODALIDADE_" & i&">"
+		'xml = xml & "<ORDEM_EXIBICAO_" & i&">" & request("ordem_exibicao_" & i ) & "</ORDEM_EXIBICAO_" & i&">"
+		xml = xml & "<DT_INICIO_" & i&">" & request("dt_inicio_" & i ) & "</DT_INICIO_" & i&">"
+		xml = xml & "<DT_FIM_" & i&">" & request("dt_fim_" & i ) & "</DT_FIM_" & i&">"
+		'xml = xml & "<IND_HABILITADO_" & i&">" & request("ind_habilitado_" & i ) & "</IND_HABILITADO_" & i&">"
+		xml = xml & "<IND_HABILITADO_" & i&">" & ind_habilitado & "</IND_HABILITADO_" & i&">"		
+		xml = xml & "<IND_ACAO_SUBMODALIDADE_" & i&">" & request("ind_acao_submodalidade_" & i ) & "</IND_ACAO_SUBMODALIDADE_" & i&">"
+		
+		'Response.Write "IND_TIPO_SUBMODALIDADE_: " & request("ind_tipo_submodalidade_" & i ) & " NOME_SUBMODALIDADE: " & request("nome_submodalidade_" & i ) & " IND_HABILITADO: " & ind_habilitado & " IND_ACAO_SUBMODALIDADE: " & request("ind_acao_submodalidade_" & i ) & "</br>"
+		'Response.End
+		
+		xml = xml & "</DADOS_" & i&">"
+		
+		ind_habilitado = "S"
+	end if
+next
+xml = xml & "</SUBMODALIDADE>"
+
+'Response.Write qtd_submodalidade
+'Response.End
+
+if Request.QueryString("ind_executando") = "S" then	
+
+    %>
+    <!--Include do recordset oracle-->
+    <!--#include file=..\..\gen\asp\gen0146a.asp-->
+    <!--#include file=..\..\gen\asp\gen0146b.asp-->
+    <%
+
+    Session("txt_msg")	= ""
+    session("pgm_retorno_erro") = ""
+    
+    Dim vet_PL(3, 4)
+
+    vet_PL(1, 1) = "OUT"
+    vet_PL(1, 2) = "adDouble"
+    vet_PL(1, 3) = "p_cod_retorno"
+    
+    vet_PL(2, 1) = "OUT"
+    vet_PL(2, 2) = "adVarChar"
+    vet_PL(2, 3) = "p_msg_retorno"
+
+    vet_PL(3, 1) = "IN"
+    vet_PL(3, 2) = "adVarChar"
+    vet_PL(3, 3) = "p_xml_parametros"
+    vet_PL(3, 4) = xml
+
+    on error resume next
+    
+    Call ExecutaPLOracle (	CStr(session("ace_usuario")),_					        CStr(session("ace_senha")),_					        CStr(session("ace_ip")),_					        CStr(session("ace_sistema")),_					        CStr(session("ace_modulo")),_
+					        "RB_PREVIA_REEMBOLSO.GravaPreviaSubmodalidade", _
+					        vet_PL, _
+					        false )
+   
+    FechaConexao()
+    
+    if err.number <> "0" then
+        sCodRetorno = "9"
+        sMsgRetorno = "Erro::" & replace(replace(replace(err.Description,"'",""),chr(13),"<BR>"),"""","")
+    else
+        sCodRetorno = vet_PL(1, 4)
+        sMsgRetorno = vet_PL(2, 4)
+    end if
+    on error goto 0
+    
+    'Response.Write "<BR>sCodRetorno=" & sCodRetorno
+    'Response.Write "<BR>sMsgRetorno=" & sMsgRetorno   
+    
+    session("txt_msg")     = sMsgRetorno
+
+    RESPONSE.Redirect "rbm1109a.asp?PT=" & txt_subtitulo
+
+end if
+%>

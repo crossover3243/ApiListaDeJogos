@@ -1,0 +1,760 @@
+<%@ LANGUAGE="VBSCRIPT" %>
+<%
+'-----------------------------------------------------------
+'-	Cadastro Previa Submodalidade
+'-	Criação : 27/03/2025
+    
+
+option explicit
+
+Dim sUsuario, sSenha, sIP, sModulo, sSistema, txt_msg, txt_pgm_retorno, txt_subtitulo, cod_tipo_autorizacao
+dim oPesquisa, rsPesquisa, nom_grupo_regra, ind_tipo, cod_grupo_regra, tempoIni, ind_acao, ind_abrangencia,ind_aplicacao
+dim ind_contagem,qtd_contagem ,ind_debug, ind_todas_filiais
+Dim vet_PL()
+dim pCampoAtual
+Redim vet_PL(0, 0)
+dim ind_consulta, ind_exames, ind_internacao, ind_forma_abertura
+dim rsCombo, ind_tipo_reembolso, txt_disabled
+dim desabilitadoCRTHist, desabilitadoOrigemHist
+dim ind_habilitado, qtd_ocorrencia
+
+tempoIni = Timer
+
+sUsuario	= Session("ace_usuario")
+sSenha		= Session("ace_senha")
+sIP			= Session("ace_ip")
+sModulo		= Session("ace_modulo")
+sSistema	= session("ace_sistema")
+
+txt_msg			= Session("txt_msg")
+txt_subtitulo	= Request.QueryString("PT")
+	
+Session("txt_msg") = ""
+session("pgm_retorno") = Request.ServerVariables("SCRIPT_NAME") & "?pt=" & txt_subtitulo
+
+
+txt_pgm_retorno = session("pgm_retorno")
+ind_tipo		= Request("ind_tipo")
+ind_debug  ="S"
+
+
+if trim(ind_tipo)="" then ind_tipo = "1"
+
+%>
+<!--Include do recordset oracle-->
+<!--#include file=..\..\gen\asp\gen0146a.asp-->
+<!--#include file=..\..\gen\asp\gen0146b.asp-->
+<%
+
+cod_grupo_regra		= Request("cod_grupo_regra")
+ind_tipo_reembolso 	= Request("ind_tipo_reembolso")
+ind_acao			= Request("ind_acao")
+ind_forma_abertura  = Request("ind_forma_abertura")
+
+<!--ind_acao = "A"-->
+
+if trim(ind_tipo_reembolso)<>"" then
+
+	ind_acao = "A"
+	ind_forma_abertura = "HI"
+	
+end If
+  
+%>
+<!--#include file=..\..\gen\inc\inc0000.asp-->
+<!--#include file=..\..\gen\inc\inc0001.asp-->
+<!--#include file=..\..\gen\inc\inc0002.asp-->
+<HTML>
+<HEAD>
+<title><%=Application("app")%></title>
+
+<link href="\gen\css\css002.css" rel="stylesheet" type="text/css">
+<link id="luna-tab-style-sheet" href="\gen\css\tab2.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript" src="\gen\js\tabpane.js"></script>
+<script type="text/javascript" src="\gen\js\cpaint2.inc.compressed.js"></script>
+
+<script src="\gen\js\waitbar.js" type="text/javascript"></script>
+
+<!-- CALENDARIO INICIO -->
+<link rel="stylesheet" type="text/css" media="all" href="\gen\css\calendar-green.css" title="green" />
+<script type="text/javascript" src="\gen\js\calendar.js"></script>
+<script type="text/javascript" src="\gen\js\calendar-br.js"></script>
+<script type="text/javascript" src="\gen\js\calendar-setup.js"></script>
+<!-- CALENDARIO FIM -->
+
+<!-- Contem as funções javascript para a regra de autorização -->
+
+<script language="javascript">
+    var gLinha;
+    function acao_voltar() {
+        MostrarWait();
+        document.form01.cod_grupo_regra.value = "";
+        document.form01.action = "rbm1109a.asp?PT=" + form01.txt_subtitulo.value;
+        document.form01.submit();
+    }
+    //-------------------------------------------------------------------------------------------
+
+    function reexecute() {
+        MostrarWait();
+        document.form01.action = form01.txt_pgm_retorno.value;
+        document.form01.submit();
+    }
+	
+    //-------------------------------------------------------------------------------------------
+    function acao_continuar() {
+        MostrarWait();
+        reexecute();
+    }
+	
+    //-------------------------------------------------------------------------------------------
+    function acao_incluir() {
+        if (!validacao())
+            return false;
+
+        MostrarWait();
+        form01.action = "RBM1109b.asp?ind_executando=S";
+        form01.submit();
+    }
+	
+    //-------------------------------------------------------------------------------------------
+    function acao_alterar() {
+        if (!validacao())
+            return false;
+
+        MostrarWait();
+
+        form01.action = "RBM1109b.asp?ind_executando=S&PT=" + form01.txt_subtitulo.value;
+        form01.submit();
+    }
+	
+    //-------------------------------------------------------------------------------------------
+    function acao_excluir() {
+		alert('Não é possível excluir!');
+        //if (confirm("Confirma exclusão?") == true) {
+        //    MostrarWait();
+        //    form01.ind_acao.value = 'E';
+        //    form01.action = "RBM1109b.asp?ind_executando=S";
+        //    form01.submit();
+        //}
+    }
+	//-------------------------------------------------------------------------------------------
+	/**
+	* Verifica se uma string no formato "dd/mm/yyyy" corresponde a uma data válida.
+	* @param {string} dateString — data no formato "dd/mm/yyyy"
+	* @returns {boolean} — true se for válida, false caso contrário
+	*/
+	function isValidDate(dateString) {
+
+	 var regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+	 if (!regex.test(dateString)) {
+	   return false;
+	 }
+
+	 var parts = dateString.split('/');
+	 var day   = parseInt(parts[0], 10);
+	 var month = parseInt(parts[1], 10);
+	 var year  = parseInt(parts[2], 10);
+
+	 if (month < 1 || month > 12 || day < 1 || day > 31) {
+	   return false;
+	 }
+
+	 var date = new Date(year, month - 1, day);
+
+	 return (
+	   date.getFullYear() === year &&
+	   date.getMonth()    === month - 1 &&
+	   date.getDate()     === day
+	 );
+	}
+    //-------------------------------------------------------------------------------------------
+    function validacao() {
+
+    var data_atual = new Date();
+
+    data_atual.setHours(0, 0, 0, 0);
+
+    var input = null;
+
+    var valor = null;
+
+    var partes = null;
+
+    var dia = null;
+
+    var mes = null;
+
+    var ano = null;
+	
+
+    for (j = 1; j <= form01.qtd_submodalidade.value; j++) {
+
+        if (document.getElementById('nome_submodalidade_' + j).value == "") {
+
+            alert("Submodalidade é obrigatório.");
+
+            return false;
+
+        }
+		var nomesSubmodalidades = new set();
+
+        if (document.getElementById('dt_inicio_' + j).value != "") {
+
+            input = document.getElementById('dt_inicio_' + j);
+
+            valor = input.value;
+
+            partes = valor.split('/');
+
+            dia = parseInt(partes[0], 10);
+
+            mes = parseInt(partes[1], 10) - 1;
+
+            ano = parseInt(partes[2], 10);
+
+            var data_digitada = new Date(ano, mes, dia);
+
+            data_digitada.setHours(0, 0, 0, 0);
+
+            if (document.getElementById('ind_habilitado_' + j).value == "N") {
+
+                if (!isValidDate(document.getElementById('dt_inicio_' + j).value)) {
+
+                    alert("Data Inicio é inválida.");
+
+                    return false;
+
+                }
+
+                if (data_digitada.getTime() < data_atual.getTime()) {
+
+                    alert("Data Inicio não pode ser retroativa.");
+
+                    return false;
+
+                }
+
+            }
+
+        } else {
+
+            alert("Data Inicio é obrigatório.");
+
+            return false;
+
+        }
+
+        if (document.getElementById('dt_fim_' + j).value != "") {
+
+            // ?? Verifica se a checkbox está marcada
+
+            var checkbox = document.getElementById('ind_habilitado_' + j);
+
+            if (!checkbox.checked) {
+
+                alert("Para preencher a Data Fim, a submodalidade precisa estar habilitada.");
+
+                return false;
+
+            }
+
+            input = document.getElementById('dt_inicio_' + j);
+
+            valor = input.value;
+
+            partes = valor.split('/');
+
+            dia = parseInt(partes[0], 10);
+
+            mes = parseInt(partes[1], 10) - 1;
+
+            ano = parseInt(partes[2], 10);
+
+            var data_inicio = new Date(ano, mes, dia);
+
+            data_inicio.setHours(0, 0, 0, 0);
+
+            input = document.getElementById('dt_fim_' + j);
+
+            valor = input.value;
+
+            partes = valor.split('/');
+
+            dia = parseInt(partes[0], 10);
+
+            mes = parseInt(partes[1], 10) - 1;
+
+            ano = parseInt(partes[2], 10);
+
+            var data_fim = new Date(ano, mes, dia);
+
+            data_fim.setHours(0, 0, 0, 0);
+
+            if (!isValidDate(document.getElementById('dt_fim_' + j).value)) {
+
+                alert("Data Fim é inválida.");
+
+                return false;
+
+            }
+
+            if (data_fim.getTime() <= data_inicio.getTime()) {
+
+                alert("Data Fim não pode ser inferior ou igual a Data Inicio.");
+
+                return false;
+
+            }
+
+        }
+
+    }
+
+    return true;
+
+}
+ 
+	//-------------------------------------------------------------------------------------------
+    function AdicionarLinhaSubmodalidade(pIndTipoSubModalidade, pNomeSubModalidade, pDtInicio, pDtFim, pIndHabilitado) {
+        form01.qtd_submodalidade.value = parseInt(form01.qtd_submodalidade.value) + 1;
+		
+        var iLinha = form01.qtd_submodalidade.value;
+		//alert(iLinha);
+		
+		var checkbox_habilitado_checked = "checked";
+		var txt_readonly = "readonly";
+		var txt_class = " class='camposblocks' style='font-weight: normal;'";
+		var txt_size_nom = " style='width: 50.5em;'";
+		var txt_size_dt = " style='width: 10.5em;'";
+		
+		if (pIndHabilitado == "N") {
+			checkbox_habilitado_checked = "";
+			txt_readonly = "";
+			txt_class = " class='label_left' style='color: black;'";
+			txt_size_nom = " style='width: 50.5em;'";
+			txt_size_dt = " style='width: 10.5em;'";
+		}
+
+        //INCLUIR NO GRID
+        var aColunas = new Array();
+
+        var i = 0;
+        aColunas[i] = '<input type="text" '+txt_readonly+txt_class+txt_size_nom+' name="nome_submodalidade_' + iLinha + '" value="' + pNomeSubModalidade + '" maxlength="60" OnKeyDown="TeclaEnter();" onChange="this.value=Trim(this.value);" tabindex="1">';
+		i += 1;
+        //aColunas[i] = '<input type="text" name="ordem_exibicao_' + iLinha + '" value="' + pOrdemExibicao + '" size="10" maxlength="10" OnKeyDown="TeclaEnter();" onKeyPress="javascript:MascInt()" tabindex="2">';
+		//i += 1;
+        aColunas[i] = "<input type='text' "+txt_readonly+txt_class+txt_size_dt+" name='dt_inicio_" + iLinha + "' value='" + pDtInicio + "' size='10' maxlength='10' OnKeyDown='TeclaEnter();' onKeyPress='javascript:MascData(\"dd/mm/yyyy\")' tabindex='3'>";
+		if (pIndHabilitado == "N") {
+			aColunas[i] += "<img src='/gen/img/img.gif' id='img_dt_inicio_" + iLinha + "' style='cursor: pointer; border: 1px solid red;' title='Selecionar data' onmouseover='this.style.background=\"red\"' onmouseout='this.style.background=\"\"'/>";	
+		}
+		i += 1;
+        aColunas[i] = "<input type='text' "+txt_readonly+txt_class+txt_size_dt+" name='dt_fim_" + iLinha + "' value='" + pDtFim + "' size='10' maxlength='10' OnKeyDown='TeclaEnter();' onKeyPress='javascript:MascData(\"dd/mm/yyyy\")' tabindex='4'>";
+		
+		if(pDtFim == "")
+		{
+		aColunas[i] = "<input type='text' class='label_left' style='color: black;width: 10.5em;' name='dt_fim_" + iLinha + "' value='" + pDtFim + "' size='10' maxlength='10' OnKeyDown='TeclaEnter();' onKeyPress='javascript:MascData(\"dd/mm/yyyy\")' tabindex='4'>";
+		}
+		if(pIndHabilitado == "N" || pDtFim == "" )
+		{
+		aColunas[i] += "<img src='/gen/img/img.gif' id='img_dt_fim_" + iLinha + "' style='cursor: pointer; border: 1px solid red;' title='Selecionar data' onmouseover='this.style.background=\"red\"' onmouseout='this.style.background=\"\"'/>";
+		}
+		
+		i += 1;
+		
+		if (checkbox_habilitado_checked == "") {
+		
+		aColunas[i] = '<center><input type="checkbox"'+txt_readonly+txt_class+'  name="ind_habilitado_' + iLinha + '" tabindex="5" value="' + pIndHabilitado + '" ' + checkbox_habilitado_checked + '></center>';
+		}
+		else{
+		aColunas[i] = '<center><input type="checkbox" ' + txt_readonly + txt_class + ' name="ind_habilitado_' + iLinha + '" tabindex="5" value="' + pIndHabilitado + '" ' + checkbox_habilitado_checked + ' onclick="return false;"></center>';
+		
+		}
+		
+ 
+		
+        
+		aColunas[i] += '<div id="div_data_' + iLinha + '" style="display:none"></div>';
+		
+		aColunas[i] += '<input type="hidden" name="ind_tipo_submodalidade_' + iLinha + '" value="' + pIndTipoSubModalidade + '" />';
+		
+		if (pNomeSubModalidade != "")
+            aColunas[i] += '<input type="hidden" name="ind_acao_submodalidade_' + iLinha + '" value="A" />';
+        else
+            aColunas[i] += '<input type="hidden" name="ind_acao_submodalidade_' + iLinha + '" value="I" />';
+
+        AddLinhaTabela("Tb_SubModalidade", aColunas);
+		
+		ConfiguraCalendario(iLinha);
+
+        if (pNomeSubModalidade == "")
+            try { setTimeout("try{document.all['nome_submodalidade_" + iLinha + "'].focus()}catch(e){}", 200) } catch (e) { };
+
+    }
+
+    function AddLinhaTabela(pTabela, pColunas) {
+
+        var table = document.all ? document.all[pTabela] : document.getElementById(pTabela);
+        var row = table.insertRow(table.rows.length);
+        var cell = null;
+        for (var j = 0; j <= pColunas.length - 1; j++) {
+            cell = row.insertCell(j);
+            if (document.all)
+                cell.innerHTML = pColunas[j];
+            else
+                cell.appendChild(document.createTextNode(pColunas[j]));
+        }
+    }
+	function ConfiguraCalendario(pCont) {
+   var campoInicio = document.getElementById("dt_inicio_" + pCont);
+   var campoFim = document.getElementById("dt_fim_" + pCont);
+   if (campoInicio && !campoInicio.readOnly) {
+       Calendar.setup({
+           inputField: "dt_inicio_" + pCont,
+           ifFormat: "%d/%m/%Y",
+           button: "img_dt_inicio_" + pCont,
+           align: "Tl",
+           singleClick: true
+       });
+   }
+   if (campoFim && !campoFim.readOnly) {
+       Calendar.setup({
+           inputField: "dt_fim_" + pCont,
+           ifFormat: "%d/%m/%Y",
+           button: "img_dt_fim_" + pCont,
+           align: "Tl",
+           singleClick: true
+       });
+   }
+}
+    //-------------------------------------------------------------------------------------------
+
+    function ValidaIntLocal() {
+
+        form01.ind_tipo_reembolso.value = Trim(form01.ind_tipo_reembolso.value);
+
+        ValidaInt();
+		
+        if (form01.ind_tipo_reembolso.value != "")
+            reexecute();
+    }
+	
+</script>
+
+</head>
+
+<BODY>
+
+<%AbreTable()%>
+<font class="subtitulos"><%=txt_subtitulo%></font>
+<%FechaTable()%>
+
+<%Call SetWaitBar()%>
+
+<div id="txt_msg" class="msg" align="center"><%=txt_msg%></div>
+
+<form method="POST" name="form01">
+
+<%AbreTable()%>
+
+<table border="0" width="100%" align="center">
+    <tr>
+        <td width="15%" nowrap class="label_right">Modalidade&nbsp;</td>
+        <td nowrap >
+			<%
+			set rsCombo = retornaCursor("tipo_reembolso","ind_tipo_reembolso","nome_tipo_reembolso","", "order by ind_tipo_reembolso") 
+			response.write montaCombo(rsCombo, "ind_tipo_reembolso", ind_tipo_reembolso, "ValidaIntLocal()", desabilitadoCRTHist)
+			%>
+        </td>
+    </tr>
+</table>
+<%FechaTable()%>
+
+<% if trim(ind_tipo_reembolso) <> "" then %>
+
+    <% AbreTable%>
+   
+    <table width="100%" border="0">
+        <tr>
+            <td class="grid_cabec" width="98%"><h1 class="grid_cabec"><label><font align="center" class="label_left"><b>&nbsp;Consultar Modalidades x Submodalidades</b></label></h1></td>
+            <!--<td class="label_right" ><h1 class="grid_cabec"><img id="img_dv_exigencia" src="../../gen/img/btn-up.jpg" width="16" height="12" onClick="Expandir('dv_exigencia');" style="cursor:hand" title="Clique para exibir as submodalidades" /></h1></td>-->
+        </tr>
+    </table>
+    <div id="dv_exigencia"><fieldset><% Call MontaSubmodalidade(ind_tipo_reembolso) %></fieldset></div>   
+	
+	<table width="100%" border="0" id="faixaOcorrencia">
+		<tr>
+			<td class="grid_cabec" width="98%"><h1 class="grid_cabec"><label><font align="center" class="label_left"><b>&nbsp;Ocorrência</b></label></h1></td>	
+			<!--<td class="label_right" ><h1 class="grid_cabec"><img id="img_dv_ocorrencia" src="../../gen/img/btn-up.jpg" width="16" height="12" onClick="Expandir('dv_ocorrencia');" style="cursor:hand" title="Clique para exibir as ocorrências" /></h1></td>-->	
+		</tr>
+	</table>
+	<div id="dv_ocorrencia"><fieldset><% Call MontaOcorrencia() %></fieldset></div>	
+    
+    <%FechaTable()%>
+<% end if %>
+
+<input type="hidden" name="txt_pgm_retorno" value="<%=txt_pgm_retorno%>">
+<input type="hidden" name="ind_acao" value="<%=ind_acao%>">
+<input type="hidden" name="ind_tipo" value="<%=ind_tipo%>">
+<input type="hidden" name="cod_usuario" value="<%=sUsuario %>" />
+<input type="hidden" name="txt_subtitulo" value="<%=txt_subtitulo %>" />
+<iframe WIDTH"0" HEIGHT="0" name="if_execucao" id="if_execucao" src="" frameBorder="yes"></iframe>
+
+</form>
+
+<script type="text/javascript">
+	<% if trim(ind_acao)<>"" then %>
+		document.form01.nom_grupo_regra.focus();
+	<% else %>
+		document.form01.cod_grupo_regra.focus();
+	<% end if %>
+</script>
+
+<%
+
+'VOLTAR/CONTINUAR/LIMPAR/INCLUIR/ALTERAR/EXCLUIR/EXECUTAR
+
+select case trim(ind_acao)
+    case "I":
+        call MontaToolbar("N","N","S","S","N","N","N","N")
+        
+    case "A"
+        call MontaToolbar("N","N","S","N","S","N","N","N")
+    case "N"
+        call MontaToolbar("N","S","S","N","N","N","N","N")
+	case else
+        
+		call MontaToolbar("N","N","S","N","N","N","N","N")
+end select        
+
+%>
+
+<!--Colocar o tempo de execução da página-->
+<table width=100%>  
+    <tr><td align=right style="COLOR:#000080;FONT-FAMILY:Arial;FONT-SIZE:11px;">Tempo de execução da página : <b><%=round(timer - tempoIni,2) & "s"%></b></td></tr>
+</table>  
+
+</BODY>
+</HTML>
+<%
+FechaConexao()
+
+'------------------------------------------------------------------------------------------
+function montaCombo(rsCombo, nome, valor, onChange, disabled)
+	
+	dim strCombo
+	dim valRsCombo
+		
+	if disabled = "S" then
+		txt_disabled = "disabled class=camposblocks"
+	else
+		txt_disabled = ""
+	end if
+	
+	strCombo = ""
+	
+	strCombo = "<select id= '" & nome & "' name='" & nome & "' onchange='" & onChange & "' tabindex='0' " & txt_disabled & ">"
+	strCombo = strCombo & "<option></option>" & Chr(13) & Chr(10)
+	do while not rsCombo.eof 
+		valRsCombo = rsCombo(0) & ""
+		
+		if valRsCombo <> "" then
+			if cstr(valor) = cstr(valRsCombo) then
+				strCombo = strCombo & "<option value=" & valRsCombo & " selected>" & rsCombo(1) & "</option>" & Chr(13) & Chr(10)		
+			else
+				strCombo = strCombo & "<option value=" & valRsCombo & ">" & rsCombo(1) & "</option>" & Chr(13) & Chr(10)
+			end if
+		end if
+		rsCombo.movenext
+	loop
+
+	strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+	montaCombo = strCombo
+
+
+end function
+'-------------------------------------------------
+'Montar ícone do calnedario
+'-------------------------------------------------
+Sub MontaCalendario(pCampo)
+	%>
+	<img src="/gen/img/img.gif" id="img_<%=pCampo%>"
+		style="cursor: pointer; border: 1px solid red;"
+		title="Selecionar data" onmouseover="this.style.background='red';"
+		onmouseout="this.style.background=''" />
+	<script>
+		Calendar.setup({
+			inputField     :    "<%=pCampo%>",
+			ifFormat       :    "%d/%m/%Y",
+			button         :    "img_<%=pCampo%>",
+			align          :    "Tl",
+			singleClick    :    true
+		});
+	</script>
+<%End Sub
+'-------------------------------------------------------------------------------------------
+function retornaCursor(p_nome_tabela, p_campo_value, p_campo_desc, p_where, p_order)
+	'-----------------------------------------------------------------------
+	'Montar combo da situação dos reembolsos
+	'-----------------------------------------------------------------------
+	Dim rsCombo
+	Dim VetCombo(5,4)
+
+	VetCombo(1, 1) = "IN"
+	VetCombo(1, 2) = "adVarChar"
+	VetCombo(1, 3) = "p_nome_tabela"
+	VetCombo(1, 4) = p_nome_tabela
+
+	VetCombo(2, 1) = "IN"
+	VetCombo(2, 2) = "adVarChar"
+	VetCombo(2, 3) = "p_campo_value"
+	VetCombo(2, 4) = p_campo_value
+
+	VetCombo(3, 1) = "IN"
+	VetCombo(3, 2) = "adVarChar"
+	VetCombo(3, 3) = "p_campo_desc"
+	VetCombo(3, 4) = p_campo_desc
+
+	VetCombo(4, 1) = "IN"
+	VetCombo(4, 2) = "adVarChar"
+	VetCombo(4, 3) = "p_order"
+	VetCombo(4, 4) = p_order
+	VetCombo(4, 4) = p_order
+	
+	VetCombo(5, 1) = "IN"
+	VetCombo(5, 2) = "adVarChar"
+	VetCombo(5, 3) = "p_where"
+	VetCombo(5, 4) = p_where
+
+	Set rsCombo =  rsCursorOracle (	CStr(Session("ace_usuario")),_
+									CStr(Session("ace_senha")),_
+									CStr(Session("ace_ip")),_
+									CStr(Session("ace_sistema")),_
+									CStr(Session("ace_modulo")),_
+									"RB_REEMBOLSO.RetornaCursor", _
+									VetCombo, _
+									false )
+	
+
+
+	set retornaCursor = rsCombo			
+end function
+
+'------------------------------------------------------------------------
+Private Sub MontaSubmodalidade(ind_tipo_reembolso)
+	
+	%>
+
+	<table border="0" width="60%" align="center" id="Tb_SubModalidade">
+		<tr>
+			<td width="60%" class="grid_cabec" align=center><b>Submodalidade</td>
+            <!--<td width="20%" class="grid_cabec" align=center><b>Ordem Exibição</td>-->
+			<td width="20%" class="grid_cabec" align=center><b>Data Inicio</td>
+			<td width="20%" class="grid_cabec" align=center><b>Data Fim</td>
+			<td width="20%" class="grid_cabec" align=center><b>Habilitado</td>
+		</tr>
+    </table>
+    <input type="hidden" name="qtd_submodalidade" value="0">
+	<%
+  
+    if ind_acao = "A" then
+        '---------------------
+        'CARREGAR SUBMODALIDADES
+        '---------------------
+        Redim vet_PL(1,4)
+        
+        vet_PL(1, 1) = "IN"
+        vet_PL(1, 2) = "adDouble"
+        vet_PL(1, 3) = "p_tipo_reembolso"
+        vet_PL(1, 4) = ind_tipo_reembolso
+
+        Set rsPesquisa = rsCursorOracle(CStr(sUsuario), _
+	 					                CStr(sSenha), _
+ 						                CStr(sIP), _
+						                CStr(sSistema), _
+						                CStr(sModulo),_
+						                "rb_previa_reembolso.get_previa_submodalidades", _
+						                vet_PL, _
+						                false )
+       
+        do while not rsPesquisa.eof 
+		%>
+            <script>
+                AdicionarLinhaSubmodalidade("<%=rsPesquisa("ind_tipo_submodalidade")%>","<%=rsPesquisa("nome_submodalidade")%>","<%=rsPesquisa("dt_inicio") %>","<%=rsPesquisa("dt_fim") %>","<%=rsPesquisa("ind_habilitado") %>");
+            </script>
+		    <% 
+			
+            rsPesquisa.movenext
+        loop
+        rsPesquisa.close
+        set rsPesquisa = nothing
+	end if %>
+	
+	<center><input class="informacao" id="btnExigencia" type="button" onclick="AdicionarLinhaSubmodalidade('','','','','N')" value="Adicionar Nova Submodalidade" style="cursor:hand;margin: 10px;" tabindex="1" ></center>
+	<%
+End Sub
+
+Private Sub MontaOcorrencia()
+
+    %>
+	
+    	<fieldset>
+			<table border="0" width="100%" align="center" id="tblOcorrencia">
+				<tr>
+					<td class="grid_cabec" width="25%" align="center"><b>Data</td>
+					<td class="grid_cabec" width="55%" align="center"><b>Descrição</td>
+					<td class="grid_cabec" width="20%" align="center"><b>Usuário</td>
+				</tr>
+				<%
+				qtd_ocorrencia = 0
+					'---------------------
+					'CARREGAR AS OCORRENCIAS
+					'---------------------
+					Redim vet_PL(1, 4)
+					vet_PL(1, 1) = "IN"
+					vet_PL(1, 2) = "adDouble"
+					vet_PL(1, 3) = "p_ind_tipo_reembolso"
+					vet_PL(1, 4) = ind_tipo_reembolso
+					
+					
+
+					Set rsPesquisa = rsCursorOracle(CStr(sUsuario), _
+													CStr(sSenha), _
+													CStr(sIP), _
+													CStr(sSistema), _
+													CStr(sModulo),_
+													"rb_previa_reembolso.get_submodalidade_ocorrencia", _
+													vet_PL, _
+													false )
+					do while not rsPesquisa.eof 
+						qtd_ocorrencia = Cint(qtd_ocorrencia) + 1					
+						%>
+						<tr>
+							<td align="center">								
+								<%=rsPesquisa("dt_ocorrencia")%>
+							</td>
+							<td align="center">								
+								<%=rsPesquisa("desc_ocorrencia")%>
+							</td>
+							<td align="center">								
+								<%=rsPesquisa("cod_usuario_atu")%>
+							</td>							
+						</tr>
+						<% rsPesquisa.movenext
+					loop
+				rsPesquisa.close
+				set rsPesquisa = nothing
+				%>
+			</table>
+		<center>
+		
+        <input type="hidden" name="qtd_tblOcorrencia" value="0" />
+		</center>
+	</fieldset>		
+	
+<% End Sub %>
+
+  <script>  
+    //MontaTela();
+  </script>
+  
