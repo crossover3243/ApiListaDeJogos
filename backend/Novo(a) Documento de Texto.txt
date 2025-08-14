@@ -1,0 +1,620 @@
+<!-- #include file="../../gen/js/cpaint2.inc.asp"-->
+
+<!--#include file=..\..\gen\asp\gen0146a.asp-->
+<!--#include file=..\..\gen\asp\gen0146b.asp-->
+
+<%
+'-----------------------------------------------------------
+'- Programa : Regra Autorização - Consultas Ajax
+'- Autor    : TopDown	
+'-----------------------------------------------------------
+
+
+
+
+set cp = new cpaint
+
+cp.register("RetornarNovoCodRegra")
+cp.register("MontaProcedimento")
+cp.register("MontaComboAtendimento")
+cp.register("MontaComboConselho")
+cp.register("MontaComboOperadora")
+cp.register("MontaComboModalidade")
+cp.register("RetornarCodigoUltimaParametrizacao")
+cp.register("CarregaSubModalidade")
+cp.start("ISO-8859-1")
+cp.return_data
+
+'-----------------------------------------------------------------------------------------
+function RetornarNovoCodRegra()
+  
+	Dim vet_PL(1, 4)
+
+	vet_PL(1, 1) = "OUT"
+	vet_PL(1, 2) = "adDouble"
+	vet_PL(1, 3) = "p_cod_grupo"
+  
+    Call ExecutaPLOracle(CStr(session("ace_usuario")),_
+				 	     CStr(session("ace_senha")),_
+				 	     CStr(session("ace_ip")),_
+					     CStr(session("ace_sistema")),_
+					     CStr(session("ace_modulo")),_
+					     "RBM_RCS_AUTOMATIZACAO_PREVIA.get_novo_cod_regra", _
+					     vet_PL, _
+					     false )
+	cp.set_id "response"
+	cp.set_data vet_PL(1, 4)
+	RetornarNovoCodRegra = vbnull
+  
+end function
+'-----------------------------------------------------------------------------------------
+function MontaComboAtendimento(qtdTipo, pDesabilitado, pModalidade)
+
+    Dim vetParam(5, 4)
+    Dim rsCombo, sDisabled, item_selecionado
+    dim v_valor,v_descricao
+	dim sWhereAtendimento, vCampo
+	
+	sWhereAtendimento = ""
+	vCampo = "cod_tratamento"
+	
+	if pModalidade = "1" then
+		sWhereAtendimento = "where cod_tratamento in (5, 45)"	
+	elseif pModalidade = "2" then
+		sWhereAtendimento = "where cod_tratamento not in (5, 45) and ind_internado = 'N'"
+	elseif pModalidade = "3" then
+		sWhereAtendimento = "where cod_tratamento not in (5, 45) and ind_internado = 'S'"
+	end if
+	
+    vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_nome_tabela"
+    vetParam(1, 4) = "tipo_tratamento" 
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_campo_value"
+    vetParam(2, 4) = "cod_tratamento" 
+    
+    vetParam(3, 1) = "IN"
+    vetParam(3, 2) = "adVarchar"
+    vetParam(3, 3) = "p_campo_desc"
+    vetParam(3, 4) = "nome_tratamento" 
+    
+    vetParam(4, 1) = "IN"
+    vetParam(4, 2) = "adVarchar"
+    vetParam(4, 3) = "p_order"
+    vetParam(4, 4) = "ORDER BY nome_tratamento" 
+    
+    vetParam(5, 1) = "IN"
+    vetParam(5, 2) = "adVarchar"
+    vetParam(5, 3) = "p_where"
+    vetParam(5, 4) = sWhereAtendimento
+    
+    Set rsCombo = rsCursorOracle ( CStr(session("ace_usuario")),_
+						           CStr(session("ace_senha")),_
+						           CStr(session("ace_ip")),_
+						           CStr(session("ace_sistema")),_
+						           CStr(session("ace_modulo")),_
+						           "RB_REEMBOLSO.RetornaCursor", _
+						           vetParam, _
+						           false )
+
+
+    
+    strCombo =""
+    strCombo =  "<select id='"&vCampo&"_"&qtdTipo & "' name='"&vCampo&"_"&qtdTipo & "'  " & pEvento &" tabindex='1' style='width:135px'>" & Chr(13) & Chr(10)
+    strCombo = strCombo &"<option></option>" & Chr(13) & Chr(10)
+    
+    Do Until rsCombo.EOF
+    
+        
+        
+        v_valor     = rsCombo("cod_tratamento")
+        v_descricao = rsCombo("nome_tratamento")
+        
+        if pDesabilitado ="" then pDesabilitado = "N"
+
+        IF(cStr(pDesabilitado) = cStr(v_valor)) then 
+            strCombo = strCombo & "<option value='" & v_valor & "' selected>" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        else
+            strCombo = strCombo & "<option value='" & v_valor & "' >" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        end if        
+        rsCombo.MoveNext
+    
+    Loop
+
+    rsCombo.Close
+    Set rsCombo = Nothing
+    
+    strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+    
+	cp.set_id "response"
+	cp.set_data strCombo
+	MontaComboAtendimento = vbNull
+	
+End Function
+'-----------------------------------------------------------------------------------------
+function MontaComboConselho(qtdTipo, pDesabilitado, pModalidade)
+
+    Dim vetParam(5, 4)
+    Dim rsCombo, sDisabled, item_selecionado
+    dim v_valor,v_descricao
+	dim vCampo
+
+	vCampo = "sigla_conselho"
+	
+    vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_nome_tabela"
+    vetParam(1, 4) = "conselho_regional" 
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_campo_value"
+    vetParam(2, 4) = "sigla_conselho" 
+    
+    vetParam(3, 1) = "IN"
+    vetParam(3, 2) = "adVarchar"
+    vetParam(3, 3) = "p_campo_desc"
+    vetParam(3, 4) = "" 
+    
+    vetParam(4, 1) = "IN"
+    vetParam(4, 2) = "adVarchar"
+    vetParam(4, 3) = "p_order"
+    vetParam(4, 4) = "ORDER BY sigla_conselho" 
+    
+    vetParam(5, 1) = "IN"
+    vetParam(5, 2) = "adVarchar"
+    vetParam(5, 3) = "p_where"
+    vetParam(5, 4) = ""
+    
+    Set rsCombo = rsCursorOracle ( CStr(session("ace_usuario")),_
+						           CStr(session("ace_senha")),_
+						           CStr(session("ace_ip")),_
+						           CStr(session("ace_sistema")),_
+						           CStr(session("ace_modulo")),_
+						           "RB_REEMBOLSO.RetornaCursor", _
+						           vetParam, _
+						           false )
+
+
+    
+    strCombo =""
+    strCombo =  "<select id='"&vCampo&"_"&qtdTipo & "' name='"&vCampo&"_"&qtdTipo & "'  " & pEvento &" tabindex='1' style='width:125px'>" & Chr(13) & Chr(10)
+    strCombo = strCombo &"<option></option>" & Chr(13) & Chr(10)
+    
+    Do Until rsCombo.EOF
+    
+        
+        
+        v_valor     = rsCombo("sigla_conselho")
+        v_descricao = rsCombo("sigla_conselho")
+        
+        if pDesabilitado ="" then pDesabilitado = "N"
+
+        IF(cStr(pDesabilitado) = cStr(v_valor)) then 
+            strCombo = strCombo & "<option value='" & v_valor & "' selected>" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        else
+            strCombo = strCombo & "<option value='" & v_valor & "' >" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        end if        
+        rsCombo.MoveNext
+    
+    Loop
+
+    rsCombo.Close
+    Set rsCombo = Nothing
+    
+    strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+    
+	cp.set_id "response"
+	cp.set_data strCombo
+	MontaComboConselho = vbNull
+	
+End Function
+'-----------------------------------------------------------------------------------------
+function MontaComboOperadora(qtdTipo, pDesabilitado, pModalidade)
+
+    Dim vetParam(5, 4)
+    Dim rsCombo, sDisabled, item_selecionado
+    dim v_valor,v_descricao
+	dim sWhereAtendimento, vCampo
+	
+	vCampo = "cod_operadora"
+		
+    vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_nome_tabela"
+    vetParam(1, 4) = "operadora" 
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_campo_value"
+    vetParam(2, 4) = "cod_operadora" 
+    
+    vetParam(3, 1) = "IN"
+    vetParam(3, 2) = "adVarchar"
+    vetParam(3, 3) = "p_campo_desc"
+    vetParam(3, 4) = "nom_operadora" 
+    
+    vetParam(4, 1) = "IN"
+    vetParam(4, 2) = "adVarchar"
+    vetParam(4, 3) = "p_order"
+    vetParam(4, 4) = "ORDER BY nom_operadora" 
+    
+    vetParam(5, 1) = "IN"
+    vetParam(5, 2) = "adVarchar"
+    vetParam(5, 3) = "p_where"
+    vetParam(5, 4) = ""
+    
+    Set rsCombo = rsCursorOracle ( CStr(session("ace_usuario")),_
+						           CStr(session("ace_senha")),_
+						           CStr(session("ace_ip")),_
+						           CStr(session("ace_sistema")),_
+						           CStr(session("ace_modulo")),_
+						           "RB_REEMBOLSO.RetornaCursor", _
+						           vetParam, _
+						           false )
+
+
+    
+    strCombo =""
+    strCombo =  "<select name='"&vCampo&"_"&qtdTipo & "' tabindex='1' style='width:100px' >" & Chr(13) & Chr(10)
+    strCombo = strCombo & "<option value=99>Todas</option>" & Chr(13) & Chr(10)
+    
+    Do Until rsCombo.EOF
+        
+        v_valor     = rsCombo("cod_operadora")
+        v_descricao = rsCombo("nom_operadora")
+        
+        strCombo = strCombo & "<option value='" & v_valor & "' >" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        rsCombo.MoveNext
+    
+    Loop
+
+    rsCombo.Close
+    Set rsCombo = Nothing
+    
+    strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+    
+	cp.set_id "response"
+	cp.set_data strCombo
+	MontaComboOperadora = vbNull
+	
+End Function
+'---------------------------------
+function MontaComboModalidade(qtdTipo, pDesabilitado, pModalidade)
+
+    Dim vetParam(5, 4)
+    Dim rsCombo, sDisabled
+    dim v_valor,v_descricao
+	dim vCampo
+	
+	vCampo = "ind_tipo_reembolso"
+		
+    vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_nome_tabela"
+    vetParam(1, 4) = "tipo_reembolso" 
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_campo_value"
+    vetParam(2, 4) = "ind_tipo_reembolso" 
+    
+    vetParam(3, 1) = "IN"
+    vetParam(3, 2) = "adVarchar"
+    vetParam(3, 3) = "p_campo_desc"
+    vetParam(3, 4) = "nome_tipo_reembolso" 
+    
+    vetParam(4, 1) = "IN"
+    vetParam(4, 2) = "adVarchar"
+    vetParam(4, 3) = "p_order"
+    vetParam(4, 4) = "ORDER BY ind_tipo_reembolso" 
+    
+    vetParam(5, 1) = "IN"
+    vetParam(5, 2) = "adVarchar"
+    vetParam(5, 3) = "p_where"
+    vetParam(5, 4) = ""
+    
+    Set rsCombo = rsCursorOracle ( CStr(session("ace_usuario")),_
+						           CStr(session("ace_senha")),_
+						           CStr(session("ace_ip")),_
+						           CStr(session("ace_sistema")),_
+						           CStr(session("ace_modulo")),_
+						           "RB_REEMBOLSO.RetornaCursor", _
+						           vetParam, _
+						           false )
+
+
+    
+    strCombo =""
+    strCombo =  "<select id='"&vCampo&"_"&qtdTipo & "' name='"&vCampo&"_"&qtdTipo & "' tabindex='1'  onchange='atualizaModalidadePesquisa(this.value,"&qtdTipo&")' style='width:100px' >" & Chr(13) & Chr(10)
+    strCombo = strCombo & "<option></option>" & Chr(13) & Chr(10)
+    
+    Do Until rsCombo.EOF
+        
+        v_valor     = rsCombo("ind_tipo_reembolso")
+        v_descricao = rsCombo("nome_tipo_reembolso")
+        
+        strCombo = strCombo & "<option value='" & v_valor & "' >" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        rsCombo.MoveNext
+    
+    Loop
+
+    rsCombo.Close
+    Set rsCombo = Nothing
+    
+    strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+    
+	cp.set_id "response"
+	cp.set_data strCombo
+	MontaComboModalidade = vbNull
+	
+End Function
+'---------------------------------
+function MontaProcedimento(qtdTipo, pProcedimento,pTipo)
+
+    Dim vetParam(6, 4)
+    Dim rsCombo, sDisabled, item_selecionado
+    dim tabela, registro
+
+
+    vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_nome_tabela"
+    vetParam(1, 4) = "vw_procedimento" 
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_campo_value"
+    vetParam(2, 4) = "item_medico" 
+    
+    vetParam(3, 1) = "IN"
+    vetParam(3, 2) = "adVarchar"
+    vetParam(3, 3) = "p_campo_desc"
+    vetParam(3, 4) = "nome_item" 
+    
+    vetParam(4, 1) = "IN"
+    vetParam(4, 2) = "adVarchar"
+    vetParam(4, 3) = "p_order"
+    vetParam(4, 4) = "" 
+    
+    vetParam(5, 1) = "IN"
+    vetParam(5, 2) = "adVarchar"
+    vetParam(5, 3) = "p_where"
+    vetParam(5, 4) = "where item_medico = '" &pProcedimento& "'"
+    
+	vetParam(6, 1) = "IN"
+    vetParam(6, 2) = "adVarchar"
+    vetParam(6, 3) = "p_campo_aux"
+    vetParam(6, 4) = ""	
+    
+    Set rsCombo = rsCursorOracle ( CStr(session("ace_usuario")),_
+						           CStr(session("ace_senha")),_
+						           CStr(session("ace_ip")),_
+						           CStr(session("ace_sistema")),_
+						           CStr(session("ace_modulo")),_
+						           "rbm_rcs_grupo_previa.get_cursor", _
+						           vetParam, _
+						           false )
+
+
+   
+    set tabela = cp.add_node("resultado", "tabela")
+    
+	set registro = tabela.add_node ("eof", 1)
+    if rsCombo.eof then
+    	registro.set_data "S"
+				
+		set registro = tabela.add_node ("indTipo", 1)
+	    registro.set_data LerCampo(pTipo)
+        set registro = nothing		
+		
+	    set registro = tabela.add_node ("indLinha", 1)
+	    registro.set_data LerCampo(qtdTipo)
+        set registro = nothing
+	
+    else
+	    registro.set_data "N"
+
+	    set registro = tabela.add_node ("codigo", 1)
+	    registro.set_data LerCampo(rsCombo(0))
+        set registro = nothing
+        
+	    set registro = tabela.add_node ("descricao", 1)
+	    registro.set_data LerCampo(rsCombo(1))
+        set registro = nothing
+        
+        
+	    set registro = tabela.add_node ("indTipo", 1)
+	    registro.set_data LerCampo(pTipo)
+        set registro = nothing		
+		
+	    set registro = tabela.add_node ("indLinha", 1)
+	    registro.set_data LerCampo(qtdTipo)
+        set registro = nothing
+
+        
+    end if
+
+    rsCombo.Close
+    set rsCombo = Nothing
+
+	MontaProcedimento = vbnull
+    set registro = nothing
+    set tabela = nothing
+
+	
+	
+End Function
+'---------------------------------
+
+function RetornarCodigoUltimaParametrizacao(ind_tipo_reembolso, cod_operadora)
+	
+	Dim vetParam(3, 4)
+	
+	vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_ind_tipo_reembolso "
+    vetParam(1, 4) = ind_tipo_reembolso
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_cod_operadora "
+    vetParam(2, 4) = cod_operadora
+	
+	vetParam(3, 1) = "OUT"
+	vetParam(3, 2) = "adVarchar"
+	vetParam(3, 3) = "p_cod_regra"
+	
+	Call ExecutaPLOracle(CStr(session("ace_usuario")),_
+				 	     CStr(session("ace_senha")),_
+				 	     CStr(session("ace_ip")),_
+					     CStr(session("ace_sistema")),_
+					     CStr(session("ace_modulo")),_
+					     "TS.RBM_RCS_PARAM_TERAPIA.get_cod_ultima_param", _
+					     vetParam, _
+					     false )
+						 
+	cp.set_id "response"
+	cp.set_data vetParam(3, 4)
+	RetornarCodigoUltimaParametrizacao = vbnull
+
+end function
+
+'---------------------------------
+function retornaCursor(p_nome_tabela, p_campo_value, p_campo_desc, p_where, p_order)
+	'-----------------------------------------------------------------------
+	'Montar combo da situação das prévias
+	'-----------------------------------------------------------------------
+	Dim rsCombo
+	Dim VetCombo(5,4)
+
+	VetCombo(1, 1) = "IN"
+	VetCombo(1, 2) = "adVarChar"
+	VetCombo(1, 3) = "p_nome_tabela"
+	VetCombo(1, 4) = p_nome_tabela
+
+	VetCombo(2, 1) = "IN"
+	VetCombo(2, 2) = "adVarChar"
+	VetCombo(2, 3) = "p_campo_value"
+	VetCombo(2, 4) = p_campo_value
+
+	VetCombo(3, 1) = "IN"
+	VetCombo(3, 2) = "adVarChar"
+	VetCombo(3, 3) = "p_campo_desc"
+	VetCombo(3, 4) = p_campo_desc
+
+	VetCombo(4, 1) = "IN"
+	VetCombo(4, 2) = "adVarChar"
+	VetCombo(4, 3) = "p_order"
+	VetCombo(4, 4) = p_order
+	
+	VetCombo(5, 1) = "IN"
+	VetCombo(5, 2) = "adVarChar"
+	VetCombo(5, 3) = "p_where"
+	VetCombo(5, 4) = p_where
+
+	Set rsCombo =  rsCursorOracle (	CStr(Session("ace_usuario")),_
+									CStr(Session("ace_senha")),_
+									CStr(Session("ace_ip")),_
+									CStr(Session("ace_sistema")),_
+									CStr(Session("ace_modulo")),_
+									"RB_PREVIA_REEMBOLSO.RetornaCursor", _
+									VetCombo, _
+									false )
+	
+
+	FechaConexao()	
+
+	set retornaCursor = rsCombo			
+end function
+
+'-----------------------------------------------------------------------------------------------------------
+function CarregaSubModalidade(pModalidade,qtdTipo)
+
+	Dim vetParam(5, 4)
+    Dim rsCombo, sDisabled
+    dim v_valor,v_descricao
+	dim vCampo,sWhere
+	
+	if pModalidade = "" then
+		sWhere = "where 1=2"
+	else
+		sWhere = "where ind_tipo_reembolso = '"& pModalidade & "' and ind_habilitado = 'S' and nvl(dt_fim,sysdate) >= trunc(sysdate)"
+	end if
+	vCampo = "ind_tipo_submodalidade"
+		
+    vetParam(1, 1) = "IN"
+    vetParam(1, 2) = "adVarchar"
+    vetParam(1, 3) = "p_nome_tabela"
+    vetParam(1, 4) = "reembolso_previa_submodalidade" 
+    
+    vetParam(2, 1) = "IN"
+    vetParam(2, 2) = "adVarchar"
+    vetParam(2, 3) = "p_campo_value"
+    vetParam(2, 4) = "ind_tipo_submodalidade" 
+    
+    vetParam(3, 1) = "IN"
+    vetParam(3, 2) = "adVarchar"
+    vetParam(3, 3) = "p_campo_desc"
+    vetParam(3, 4) = "nome_submodalidade" 
+    
+    vetParam(4, 1) = "IN"
+    vetParam(4, 2) = "adVarchar"
+    vetParam(4, 3) = "p_order"
+    vetParam(4, 4) = "ORDER BY ind_tipo_submodalidade" 
+    
+    vetParam(5, 1) = "IN"
+    vetParam(5, 2) = "adVarchar"
+    vetParam(5, 3) = "p_where"
+    vetParam(5, 4) = sWhere
+    
+    Set rsCombo = rsCursorOracle ( CStr(session("ace_usuario")),_
+						           CStr(session("ace_senha")),_
+						           CStr(session("ace_ip")),_
+						           CStr(session("ace_sistema")),_
+						           CStr(session("ace_modulo")),_
+						           "RB_REEMBOLSO.RetornaCursor", _
+						           vetParam, _
+						           false )
+
+
+    
+    strCombo =""
+    strCombo =  "<select id='"&vCampo&"_"&qtdTipo & "' name='"&vCampo&"_"&qtdTipo & "' tabindex='1' style='width:98px'>" & Chr(13) & Chr(10)
+    strCombo = strCombo & "<option></option>" & Chr(13) & Chr(10)
+    
+    Do Until rsCombo.EOF
+        
+        v_valor     = rsCombo("ind_tipo_submodalidade")
+        v_descricao = rsCombo("nome_submodalidade")
+        
+        strCombo = strCombo & "<option value='" & v_valor & "' >" & v_descricao & "</option>" & Chr(13) & Chr(10)
+        rsCombo.MoveNext
+    
+    Loop
+
+    rsCombo.Close
+    Set rsCombo = Nothing
+    
+    strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+    
+	cp.set_id "response"
+	cp.set_data strCombo
+	CarregaSubModalidade = vbNull	
+
+end function
+'--------------------------------------------------------------------------------------------------------------------------------------------
+function LerCampo ( pRegistro )
+    if isnull(pRegistro) then
+        LerCampo = ""
+    else
+        LerCampo = pRegistro
+    end if
+end function
+
+set cp = nothing
+%>
+
