@@ -1,0 +1,325 @@
+CREATE OR REPLACE PACKAGE rbm_consulta_leitura_OCR_previa
+is
+
+  
+  --
+  function get_rs_pedidos_ativos   ( p_num_reembolso   in     varchar2
+                                  , p_cod_retorno        out number
+                                  , p_msg_retorno        out varchar2
+                                  )
+    return sys_refcursor;
+ --
+  function get_rs_pedidos_reembolso_previa ( p_num_reembolso   in      varchar2
+                                           , p_ind_situacao   in      varchar2
+                                           , p_cod_retorno        out number
+                                           , p_msg_retorno        out varchar2
+                                           )
+    return sys_refcursor;
+  --
+  function p_versao           return varchar2;
+  function p_template_versao  return varchar2;
+
+
+end;
+/
+CREATE OR REPLACE PACKAGE BODY rbm_consulta_leitura_OCR_previa
+is 
+  --
+  -- Sempre comente O PORQUE OU PARA QUE de uma operacao ou condicao e nao O QUE
+  -- Repetindo com palavras a linha de comando, alem de redundande, e inutil para entendimento.
+  -- O QUE serve apenas para assinaturas de métodos e utilização de variáveis.
+  --
+  --
+  function p_versao   return varchar2
+  is
+  begin
+     return 'CVS>> SPEC: 1.2 - BODY: 1.10';
+  end;
+  --
+  -- Inicilização dos atributos do record de parametros
+  -- Também pode ser colocado operações iniciais aqui dentro.
+  --
+  procedure inicializar( p_tbl_paramSet  in out nocopy top_utl_param.tbl_paramSet
+                       , p_rec_controles in out nocopy top_utl_rel.rec_controles
+                       , p_xml_param     in            clob
+                       )
+  is
+  begin
+     --
+     p_rec_controles.logs            := null;
+     p_rec_controles.parametros      := p_xml_param;
+     --
+     p_rec_controles.validacao_ok    := true;
+     p_rec_controles.exe_cursor      := false;
+     p_rec_controles.chkpoint        := 0;
+     p_rec_controles.linhas_lidas    := 0;
+     p_rec_controles.linhas_emitidas := 0;
+     p_rec_controles.sql_cursor      := null;
+     --
+     top_utl_param.add_param( p_tbl_paramSet    => p_tbl_paramSet
+                            , p_nom_grp_param   => 'parametros'
+                            , p_nom_coluna      => 'p_ind_reembolso'
+                            , p_tpo_oracle      => 'VARCHAR2'
+                            , p_ind_obrigatorio => 'S'
+                            , p_ind_situacao    => '1'
+                            , p_nom_label       => 'Nº do Reembolso'
+                            , p_fmt_data        => NULL
+                            , p_ind_origem_vlr  => 'N'
+                            ) ;
+     --
+     top_utl_param.add_param( p_tbl_paramSet    => p_tbl_paramSet
+                            , p_nom_grp_param   => 'parametros'
+                            , p_nom_coluna      => 'p_grava_log'
+                            , p_tpo_oracle      => 'VARCHAR2'
+                            , p_ind_obrigatorio => 'N'
+                            , p_ind_situacao    => '1'
+                            , p_nom_label       => 'Grava Log'
+                            , p_tam_maximo      => 1
+                            , p_fmt_data        => NULL
+                            , p_ind_origem_vlr  => 'N'
+                            ) ;
+     --
+  end;
+  --
+  -- get_configurações:
+  -- -----------------
+  -- Obtém informações gerais pertinentes à execução deste relatório
+  -- em ts.fila_relatorio, caso tenha a necessidade de outras informações
+  -- em top_utl_rel.rec_config_relatorio, falar com os arquitetos.
+  --
+  procedure get_configuracoes ( p_rec_controles  in out nocopy top_utl_rel.rec_controles
+                              , p_reg_config     in out nocopy top_utl_rel.rec_config_relatorio
+                              , p_num_seq_fila   in            number
+                              )
+  is
+  begin
+     --
+     p_reg_config := ts.top_utl_rel.get_configuracoes( p_num_seq_fila => p_num_seq_fila );
+     --
+     top_utl_rel.abrir_xml_configuracao ( p_xml_log => p_rec_controles.logs );
+     top_utl_rel.obter_xml_configuracoes( p_xml_log => p_rec_controles.logs , p_reg_config => p_reg_config );
+     --
+     if  p_num_seq_fila is null then
+         --
+         top_utl_rel.abrir_xml_mensagens  ( p_xml_log => p_rec_controles.logs );
+         top_utl_rel.gerar_xml_mensagem   ( p_xml_log => p_rec_controles.logs , p_leitor => top_utl_padrao.tpo_leitor_usuario , p_tipo => top_utl_padrao.tpo_mensagem_erro , p_texto => 'O provedor dos dados nao recebeu o identificador do servico de relatorio solicitado.' );
+         top_utl_rel.gerar_xml_mensagem   ( p_xml_log => p_rec_controles.logs , p_leitor => top_utl_padrao.tpo_leitor_sistema , p_tipo => top_utl_padrao.tpo_mensagem_erro , p_texto => 'JasperReport: TsCtm1076JR.jasper nao esta enviando o parametro p_num_seq_fila para TableFunction: ctm_rel_valores_liberados.get_dados.' );
+         top_utl_rel.fechar_xml_mensagens ( p_xml_log => p_rec_controles.logs );
+         --
+     end if;
+     --
+     top_utl_rel.fechar_xml_configuracao( p_xml_log => p_rec_controles.logs );
+     --
+  end;
+  --
+  -- tratar_parametros:
+  -- -------------------
+  --
+  procedure tratar_parametros  ( p_rec_controles  in out nocopy top_utl_rel.rec_controles
+                               , p_tbl_paramSet   in out nocopy top_utl_param.tbl_paramSet
+                               )
+  is                                               -- Explique as variaveis
+     vlr_maior_sem_menor  number;                  -- Exemplo
+     ifld                 varchar2(32);            -- Indice do Parametro
+     iPs                  varchar2(32);            -- Indice do Grupo de Parametros
+     iRs                  number;                  -- Indice da Ocorrencia
+  begin
+     --
+     top_utl_param.transformar_xml ( p_cod_retorno  => p_rec_controles.ind_retorno
+                                   , p_msg_retorno  => p_rec_controles.msg_retorno
+                                   , p_xml          => p_rec_controles.parametros
+                                   , p_tbl_paramSet => p_tbl_paramSet
+                                   ) ;
+     --
+     if  p_rec_controles.ind_retorno  = top_utl_padrao.tpo_mensagem_informativa then p_rec_controles.validacao_ok := true;
+                                                                                else p_rec_controles.validacao_ok := false;
+     end if;
+     --
+     -- Gerando os Logs de conversão e validação dos parametros.
+     --
+     top_utl_param.gerar_logs      ( p_xml_log       => p_rec_controles.logs
+                                   , p_tab_paramsets => p_tbl_paramSet
+                                   ) ;
+     --
+  end;
+  --
+
+  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  --
+  -- abrir_cursor:
+  -- ------------
+  -- Realizar o OPEN para p_cursor
+  -- Utilização da DBMS_SQL apenas no 11g quando será possivel converter em
+  -- sys_refcursor.
+  --
+  -- O que não pode ser feito de forma alguma é concatenação de parametros,
+  -- não importa o tamanho que este método poderá ter.
+  --
+  procedure abrir_cursor        ( p_rec_controles  in out nocopy top_utl_rel.rec_controles
+                                , p_info_relatorio in out nocopy top_utl_rel.rec_config_relatorio
+                                , p_tbl_paramSet   in out nocopy top_utl_param.tbl_paramSet
+                                , p_cur_entidade   in out nocopy sys_refcursor
+                                )
+  is
+  begin
+      --
+      -- Testes Obrigatório.
+      --
+      if  p_cur_entidade%isopen then close p_cur_entidade;
+      end if;
+      --
+      -- Se deu problema em definir_cursor, nada deve ser processado.
+      --
+      if  p_rec_controles.sql_cursor is null or not p_rec_controles.exe_cursor  then return;
+      end if;
+      --
+      -- Definindo o Controle de Acesso:
+      -- (1) Se foi informado pelo XML sCodInspetoriaTs e sCodOperadora devem ser utilizados;
+      -- (2) Caso contrário, utilizar as definições do cliente
+      --
+      --
+      -- Definindo como o cursor será executado, mediante variações de parametros e variáveis de configuração
+      --
+      ts.top_utl_padrao.putline(  p_rec_controles.sql_cursor );
+      --
+      --
+      --
+      open  p_cur_entidade
+      for   p_rec_controles.sql_cursor
+      using p_tbl_paramSet('parametros' ).param('p_ind_reembolso' ).ocorrencia(1).valor_string;
+      --
+      top_utl_rel.gerar_xml_mensagem  ( p_xml_log => p_rec_controles.logs
+                                      , p_leitor  => top_utl_padrao.tpo_leitor_usuario
+                                      , p_tipo    => top_utl_padrao.tpo_mensagem_informativa
+                                      , p_texto   => 'Cursor aberto, consulta executavel. Obtendo registros.'
+                                      ) ;
+      --
+      p_rec_controles.exe_cursor := true;
+      --
+  exception
+  when others then
+       --
+       -- Caso um problema ocorra, atribuir false ao controle e agregar a mensagem do problema no XML
+       -- O que pode ser feito especificamente para tipo de leitos ( leigo ou técnico ).
+       --
+       p_rec_controles.exe_cursor := false;
+       top_utl_rel.gerar_xml_mensagem ( p_xml_log => p_rec_controles.logs
+                                      , p_leitor  => top_utl_padrao.tpo_leitor_usuario
+                                      , p_tipo    => top_utl_padrao.tpo_mensagem_erro
+                                      , p_texto   => 'Cursor não foi aberto, '||top_utl_padrao.MsgErro
+                                      ) ;
+       --
+  end;
+  --
+  -- Table Function: Retorno dos dados
+  --
+  
+
+  --
+  -- Table Function: Retorno dos dados Sem Fila Relatorio
+  --
+ 
+  
+  --
+  function get_rs_pedidos_ativos  ( p_num_reembolso   in     varchar2
+                                  , p_cod_retorno        out number
+                                  , p_msg_retorno        out varchar2
+                                  )
+    return sys_refcursor
+    is
+        v_cursor                      sys_refcursor;
+    begin
+        v_cursor := get_rs_pedidos_reembolso_previa(
+                p_num_reembolso,
+                '2', -- Aprovado
+                p_cod_retorno,
+                p_msg_retorno
+            );
+        return v_cursor;
+    end;
+ 
+
+ function get_rs_pedidos_reembolso_previa ( p_num_reembolso   in      varchar2
+                                     , p_ind_situacao   in      varchar2
+                                     , p_cod_retorno        out number
+                                     , p_msg_retorno        out varchar2
+                                     )
+    return sys_refcursor
+    is
+        v_cod_retorno          number;
+        v_msg_retorno          varchar2(200);
+        c                      sys_refcursor;
+        v_sql                  varchar2(3000);
+        v_count                number;
+        v_tamanho_reembolso    number;
+        v_num_reembolso        pedido_reembolso_previa.num_reembolso%type;
+    begin
+
+          p_cod_retorno := 0;
+          p_msg_retorno := '';
+          --
+          select length(p_num_reembolso)
+          into v_tamanho_reembolso
+          from dual;
+        --
+        if v_tamanho_reembolso > 15 then
+          select p.num_reembolso
+            into v_num_reembolso
+            from ts.pedido_reembolso_previa p
+           where p.num_reembolso_ans = p_num_reembolso;
+        else
+          v_num_reembolso := p_num_reembolso;
+        end if;
+          --
+          select count(*)
+            into v_count
+            from ts.pedido_reembolso_previa pr
+          where  pr.num_reembolso  = v_num_reembolso;
+
+          if v_count = 0 then
+             p_cod_retorno := 9;
+             p_msg_retorno := 'Prévia de Reembolso não encontrado.';
+          end if;
+
+        v_sql :=  trim(' select pr.num_reembolso, pr.num_reembolso_ans                                                                                             ')
+              || rtrim(' , pr.num_associado                                                                                                                        ')
+              || rtrim(' , rpa.dt_anexado                                                                                                                          ')
+              || rtrim(' , pr.nome_associado                                                                                                                       ')
+              || rtrim(' , rpa.nom_arq_anexo                                                                                                                       ')
+              || rtrim(' from pedido_reembolso_previa pr                                                     ')
+              || rtrim('      ,REEMBOLSO_PREVIA_ANEXO rpa                                                                                                          ')
+              || rtrim(' where (:p_ind_situacao is null or pr.ind_situacao = :p_ind_situacao)                                                                       ')
+              || rtrim('   and pr.num_reembolso   = :p_num_reembolso                                                                                               ')
+              || rtrim('   and rpa.num_reembolso   = pr.num_reembolso                                                                                              ')
+              || rtrim(' group by pr.num_reembolso,pr.num_reembolso_ans , pr.num_associado,  pr.nome_associado, rpa.nom_arq_anexo ,rpa.dt_anexado                  ')
+              ;
+
+            
+              open c
+              for v_sql
+              using p_ind_situacao, p_ind_situacao, v_num_reembolso;
+
+            --
+            return c;
+
+    exception
+        when others then
+             p_msg_retorno := 'Problemas na geração do arquivo - ' || sqlerrm;
+           p_cod_retorno := 9;
+            open c
+            for select * from dual where 1 = 2;
+
+            return c;
+
+    end;
+--
+
+
+  function  p_template_versao  return varchar2
+  is
+  begin
+     return 'CVS>> SPEC: 1.4 - BODY: 1.11';
+  end;
+end;
+/
