@@ -1,0 +1,531 @@
+CREATE OR REPLACE PROCEDURE RBM_PREVIA_OCR_RELATORIO_REL (
+   p_cod_usuario      IN     VARCHAR2,
+    p_xml_parametros   IN     CLOB,
+    p_cod_retorno      OUT    VARCHAR2, -- 0 (Realizado com sucesso)
+                                        -- 1 (Erro previsto)
+                                        -- 2 (Erro não previsto)
+                                        -- 3 (Advertência)
+    p_msg_retorno      OUT    VARCHAR2,
+    p_nome_arquivo     OUT    VARCHAR2)
+AS
+
+    TYPE rec_filtros IS RECORD (
+        dt_ini_periodo          VARCHAR2 (10),
+        dt_fim_periodo          VARCHAR2 (10),
+        TIPO_INSPETORIA         VARCHAR2 (01),
+        tipo_documento          VARCHAR2 (300)        
+        ,COD_INSPETORIA         VARCHAR2 (300)
+        ,SGL_AREA_ABERTURA      VARCHAR2 (100)
+        ,COD_OPERADORA          VARCHAR2 (100)
+        ,COD_ORIGEM             VARCHAR2 (03)
+        ,COD_MODALIDADE         VARCHAR2 (03)
+        ,TIPO_DATA              VARCHAR2 (02)
+        ,COD_SITUACAO           VARCHAR2 (03)
+    );
+
+    TYPE rec_entidade IS RECORD (
+                        
+         num_reembolso                                                    ts.rbm_previa_ocr_documento.num_reembolso%type
+        ,nom_arq_anexo                                                    ts.reembolso_previa_anexo.nom_arq_anexo%type
+        ,tipo_documento                                                   ts.rbm_tipo_anexo_previa.nom_tipo_anexo%type
+        ,nome_beneficiario                                                ts.rbm_previa_ocr_documento.nome_beneficiario%type
+        ,nome_beneficiario_conf                                           ts.rbm_previa_ocr_documento.nome_beneficiario_conf%type
+        ,numero_carteira_beneficiario                                     ts.rbm_previa_ocr_documento.numero_carteira_beneficiario%type
+        ,numero_carteira_beneficiario_conf                                ts.rbm_previa_ocr_documento.numero_carteira_beneficiario_conf%type
+        ,nome_medico                                                      ts.rbm_previa_ocr_documento.nome_medico%type
+        ,nome_medico_conf                                                 ts.rbm_previa_ocr_documento.nome_medico_conf%type
+        ,conselho                                                         ts.rbm_previa_ocr_documento.conselho%type
+        ,conselho_conf                                                    ts.rbm_previa_ocr_documento.conselho_conf%type
+        ,numero_conselho                                                  ts.rbm_previa_ocr_documento.numero_conselho%type
+        ,numero_conselho_conf                                             ts.rbm_previa_ocr_documento.numero_conselho_conf%type
+        ,uf_conselho_executante                                           ts.rbm_previa_ocr_documento.uf_conselho_executante%type
+        ,uf_conselho_executante_conf                                      ts.rbm_previa_ocr_documento.uf_conselho_executante_conf%type
+        ,cpf_cnpj                                                         ts.rbm_previa_ocr_documento.cpf_cnpj%type
+        ,cpf_cnpj_conf                                                    ts.rbm_previa_ocr_documento.cpf_cnpj_conf%type
+        ,nome_especialidade                                               ts.rbm_previa_ocr_documento.nome_especialidade%type
+        ,nome_especialidade_conf                                          ts.rbm_previa_ocr_documento.nome_especialidade_conf%type
+        ,telefone_executante                                              ts.rbm_previa_ocr_documento.telefone_executante%type
+        ,telefone_executante_conf                                         ts.rbm_previa_ocr_documento.telefone_executante_conf%type
+        ,email_executante                                                 ts.rbm_previa_ocr_documento.email_executante%type
+        ,email_executante_conf                                            ts.rbm_previa_ocr_documento.email_executante_conf%type
+        ,endereco_consultorio                                             ts.rbm_previa_ocr_documento.endereco_consultorio%type
+        ,endereco_consultorio_conf                                        ts.rbm_previa_ocr_documento.endereco_consultorio_conf%type
+        ,nome_diagnostico                                                 ts.rbm_previa_ocr_documento.nome_diagnostico%type
+        ,nome_diagnostico_conf                                            ts.rbm_previa_ocr_documento.nome_diagnostico_conf%type
+        ,cid10                                                            ts.rbm_previa_ocr_documento.cid10%type
+        ,cid10_conf                                                       ts.rbm_previa_ocr_documento.cid10_conf%type
+        ,descricao_diagnostico                                            ts.rbm_previa_ocr_documento.descricao_diagnostico%type
+        ,descricao_diagnostico_conf                                       ts.rbm_previa_ocr_documento.descricao_diagnostico_conf%type
+        ,codigo_tuss                                                      ts.rbm_previa_ocr_documento.codigo_tuss%type
+        ,codigo_tuss_conf                                                 ts.rbm_previa_ocr_documento.codigo_tuss_conf%type
+        ,descricao_codigo_tuss                                            ts.rbm_previa_ocr_documento.descricao_codigo_tuss%type
+        ,descricao_codigo_tuss_conf                                       ts.rbm_previa_ocr_documento.descricao_codigo_tuss_conf%type
+        ,qtde_material_solicitado                                         ts.rbm_previa_ocr_documento.qtde_material_solicitado%type
+        ,qtde_material_solicitado_conf                                    ts.rbm_previa_ocr_documento.qtde_material_solicitado_conf%type
+        ,valor_estimado                                                   ts.rbm_previa_ocr_documento.valor_estimado%type
+        ,valor_estimado_conf                                              ts.rbm_previa_ocr_documento.valor_estimado_conf%type
+        ,equipe_medica                                                    ts.rbm_previa_ocr_documento.equipe_medica%type
+        ,equipe_medica_conf                                               ts.rbm_previa_ocr_documento.equipe_medica_conf%type
+        ,justificativa_clinica                                            ts.rbm_previa_ocr_documento.justificativa_clinica%type
+        ,justificativa_clinica_conf                                       ts.rbm_previa_ocr_documento.justificativa_clinica_conf%type
+        ,data_internacao_inicio_tratamento                                ts.rbm_previa_ocr_documento.data_internacao_inicio_tratamento%type
+        ,data_internacao_inicio_tratamento_conf                           ts.rbm_previa_ocr_documento.data_internacao_inicio_tratamento_conf%type
+        ,tipo_atendimento                                                 ts.rbm_previa_ocr_documento.tipo_atendimento%type
+        ,tipo_atendimento_conf                                            ts.rbm_previa_ocr_documento.tipo_atendimento_conf%type
+        ,data_solicitacao                                                 ts.rbm_previa_ocr_documento.data_solicitacao%type
+        ,data_solicitacao_conf                                            ts.rbm_previa_ocr_documento.data_solicitacao_conf%type
+        ,assinatura_executante                                            ts.rbm_previa_ocr_documento.assinatura_executante%type
+        ,assinatura_executante_conf                                       ts.rbm_previa_ocr_documento.assinatura_executante_conf%type
+        ,valor_procedimento                                               ts.rbm_previa_ocr_documento.valor_procedimento%type
+        ,valor_procedimento_conf                                          ts.rbm_previa_ocr_documento.valor_procedimento_conf%type
+      
+    );
+    v_caminho          VARCHAR2 (200);
+    v_caminho_le       VARCHAR2 (6000);
+    v_linha            VARCHAR2 (6000);
+    vTxtXml            VARCHAR2 (1000);
+    vseparador         VARCHAR2 (1) := ';';
+    v_erro_oracle      VARCHAR2(300);
+    v_posicao          NUMBER;
+    v_arquivo          UTL_FILE.file_type;
+    rs_filtros         rec_filtros;
+    rs_entidade        rec_entidade;
+    cur                sys_refcursor;
+    err_trata_erro     EXCEPTION;
+    err_previsto       EXCEPTION;
+    err_nao_previsto   EXCEPTION;
+    err_advertencia    EXCEPTION;
+
+    procedure inclui_linha (pArquivo in UTL_File.File_Type, pLinha in varchar2)
+    is
+    BEGIN
+        BEGIN
+            UTL_File.Put_line(pArquivo, pLinha );
+            UTL_File.fflush(pArquivo);
+        EXCEPTION
+            WHEN UTL_File.Invalid_Path THEN
+                p_msg_retorno := 'Erro na escrita do Arquivo - Invalid Path.';
+                v_erro_oracle := SQLERRM;
+                RAISE ERR_NAO_PREVISTO;
+            WHEN UTL_File.Invalid_Mode THEN
+                p_msg_retorno := 'Erro na escrita do Arquivo - Invalid Mode.';
+                v_erro_oracle := SQLERRM;
+                RAISE ERR_NAO_PREVISTO;
+            WHEN UTL_File.Invalid_Operation THEN
+                p_msg_retorno := 'Erro na escrita do Arquivo - Invalid Operation.';
+                v_erro_oracle := SQLERRM;
+                RAISE ERR_NAO_PREVISTO;
+            WHEN UTL_File.Invalid_FileHandle THEN
+                p_msg_retorno := 'Erro na escrita do Arquivo - Invalid FilHandle.';
+                v_erro_oracle := SQLERRM;
+                RAISE ERR_NAO_PREVISTO;
+            WHEN UTL_File.Write_Error THEN
+                p_msg_retorno := 'Erro na escrita do Arquivo - Write Erro.';
+                v_erro_oracle := SQLERRM;
+                RAISE ERR_NAO_PREVISTO;
+            WHEN Others THEN
+                p_msg_retorno := 'Erro inesperado na escrita do Arquivo - '||SQLERRM;
+                v_erro_oracle := SQLERRM;
+                RAISE ERR_NAO_PREVISTO;
+        END;
+    END inclui_linha;
+
+    PROCEDURE executa_cursor
+    IS
+    BEGIN
+        IF cur%ISOPEN THEN
+            CLOSE cur;
+        END IF;
+        OPEN cur FOR
+            select
+               pr.num_reembolso
+,ra.nom_arq_anexo
+,p.tipo_documento
+,p.nome_beneficiario
+,p.nome_beneficiario_conf
+,p.numero_carteira_beneficiario
+,p.numero_carteira_beneficiario_conf
+,p.nome_medico
+,p.nome_medico_conf
+,p.conselho
+,p.conselho_conf
+,p.numero_conselho
+,p.numero_conselho_conf
+,p.uf_conselho_executante
+,p.uf_conselho_executante_conf
+,p.cpf_cnpj
+,p.cpf_cnpj_conf
+,p.nome_especialidade
+,p.nome_especialidade_conf
+,p.telefone_executante
+,p.telefone_executante_conf
+,p.email_executante
+,p.email_executante_conf
+,p.endereco_consultorio
+,p.endereco_consultorio_conf
+,p.nome_diagnostico
+,p.nome_diagnostico_conf
+,p.cid10
+,p.cid10_conf
+,p.descricao_diagnostico
+,p.descricao_diagnostico_conf
+,p.codigo_tuss
+,p.codigo_tuss_conf
+,p.descricao_codigo_tuss
+,p.descricao_codigo_tuss_conf
+,p.qtde_material_solicitado
+,p.qtde_material_solicitado_conf
+,p.valor_estimado
+,p.valor_estimado_conf
+,p.equipe_medica
+,p.equipe_medica_conf
+,p.justificativa_clinica
+,p.justificativa_clinica_conf
+,p.data_internacao_inicio_tratamento
+,p.data_internacao_inicio_tratamento_conf
+,p.tipo_atendimento
+,p.tipo_atendimento_conf
+,p.data_solicitacao
+,p.data_solicitacao_conf
+,p.assinatura_executante
+,p.assinatura_executante_conf
+,p.valor_procedimento
+,p.valor_procedimento_conf
+      from    ts.rbm_previa_ocr_documento p
+      join    ts.reembolso_previa_anexo ra on ra.num_reembolso = p.num_reembolso and ra.nom_arq_anexo = p.nom_arq_anexo
+      join    ts.pedido_reembolso_previa pr on pr.num_reembolso = p.num_reembolso
+            where
+                --Origem Filial/Unidade
+                     (nvl(rs_filtros.cod_inspetoria,'0') = '0' or
+                     (DECODE(rs_filtros.tipo_inspetoria,'C',pr.cod_inspetoria_ts_contrato,pr.cod_inspetoria_ts_abertura) in
+                     (select /*+cardinality(u,1)*/ to_number(u.column_value)                                        
+                    from table(cast(top_utl_padrao.split(rs_filtros.cod_inspetoria, ',') as ts.lst_varchar_4k)) u ))
+                    )
+
+                and (nvl(rs_filtros.COD_OPERADORA,'0') = '0' or pr.cod_operadora_contrato in
+                (select /*+cardinality(u,1)*/ to_number(u.column_value)                                        
+                    from table(cast(top_utl_padrao.split(rs_filtros.cod_operadora, ',') as ts.lst_varchar_4k)) u ))
+                and (nvl(rs_filtros.tipo_documento,'0') = '0' or  p.tipo_documento in
+                (select /*+cardinality(u,1)*/ to_number(u.column_value)                                        
+                    from table(cast(top_utl_padrao.split(rs_filtros.tipo_documento, ',') as ts.lst_varchar_4k)) u ))
+                and (nvl(rs_filtros.COD_ORIGEM,0) = 0 or pr.cod_origem = rs_filtros.COD_ORIGEM)
+                and (nvl(rs_filtros.COD_MODALIDADE,0) = 0 or pr.ind_tipo_reembolso = rs_filtros.COD_MODALIDADE)
+                and (nvl(rs_filtros.COD_SITUACAO,0) = 0 or pr.ind_situacao = rs_filtros.COD_SITUACAO)
+
+                and ((rs_filtros.TIPO_DATA = 'SO' and trunc(pr.dt_inclusao) BETWEEN to_date(rs_filtros.dt_ini_periodo, 'DD/MM/RRRR') AND to_date(rs_filtros.dt_fim_periodo, 'DD/MM/RRRR'))
+                     or (rs_filtros.TIPO_DATA = 'PP' and trunc(pr.dt_provavel_reembolso) BETWEEN to_date(rs_filtros.dt_ini_periodo, 'DD/MM/RRRR') AND to_date(rs_filtros.dt_fim_periodo, 'DD/MM/RRRR'))
+                     or (rs_filtros.TIPO_DATA = 'PG' and trunc(pr.dt_analise) BETWEEN to_date(rs_filtros.dt_ini_periodo, 'DD/MM/RRRR') AND to_date(rs_filtros.dt_fim_periodo, 'DD/MM/RRRR'))
+                    )
+            ;
+
+        FETCH cur INTO rs_entidade;
+
+        --
+    END executa_cursor;
+
+BEGIN
+    BEGIN
+        BEGIN
+            v_posicao := 10;
+            p_cod_retorno := '0';
+            p_msg_retorno := '';
+            -- Obtendo o caminho onde o arquivo será escrito
+            v_posicao := 20;
+            BEGIN
+                SELECT val_parametro
+                INTO   v_caminho_le
+                FROM   controle_sistema
+                WHERE  cod_parametro = 'WEB_FILE_REEMBOLSO';
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    NULL;
+                    RAISE err_previsto;
+                WHEN OTHERS THEN
+                    NULL;
+                    RAISE err_nao_previsto;
+            END;
+            --
+            BEGIN
+                SELECT val_parametro
+                INTO   v_caminho
+                FROM   controle_sistema
+                WHERE  cod_parametro = 'UTL_FILE_REEMBOLSO';
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    p_msg_retorno := 'Parâmetro UTL_FILE_REEMBOLSO não foi encontrado na tabela CONTROLE_SISTEMA';
+                    RAISE err_nao_previsto;
+            END;
+            --
+            v_posicao := 30;
+
+            IF v_caminho IS NULL THEN
+                p_msg_retorno := 'Caminho do parâmetro UTL_FILE_REEMBOLSO não informado';
+                RAISE err_nao_previsto;
+            END IF;
+
+            -- Retornar cursor do xml
+            v_posicao := 40;
+
+            BEGIN
+                cur := ts_xml.tocursor (p_xml_parametros);
+            EXCEPTION
+                WHEN OTHERS THEN
+                    p_msg_retorno := 'Erro na montagem do xml. Erro: ' || SQLERRM;
+                    RAISE err_nao_previsto;
+            END;
+
+            -- Popular coleção com os filtros capturados pelo cursor
+            v_posicao := 50;
+
+            FETCH cur INTO rs_filtros;
+
+            IF cur%ISOPEN THEN
+                CLOSE cur;
+            END IF;
+
+            -- Retorna query para consulta
+            v_posicao := 60;
+
+            executa_cursor();
+
+            -- Nenhum dado encontrado
+            v_posicao := 70;
+
+            IF cur%NOTFOUND THEN
+                p_msg_retorno := 'Nenhuma informação foi encontrada com o critério de seleção estabelecido';
+                RAISE err_nao_previsto;
+            END IF;
+
+            -- Criando arquivo
+            v_posicao := 80;
+
+            BEGIN
+                p_nome_arquivo := 'RBM_PREVIA_OCR_RELATORIO_REL_' || TO_CHAR (SYSDATE, 'ddmmyyyy') || '_' || TO_CHAR (SYSDATE, 'hh24miss') || '.csv';
+                v_arquivo := UTL_FILE.fopen (v_caminho, p_nome_arquivo, 'w', 4096);
+            EXCEPTION
+                WHEN UTL_FILE.invalid_path THEN
+                    p_msg_retorno := 'Erro na criação Arquivo - Invalid Path.';
+                    v_erro_oracle := SQLERRM;
+                    RAISE err_nao_previsto;
+                WHEN UTL_FILE.invalid_mode THEN
+                    p_msg_retorno := 'Erro na criação do Arquivo - Invalid Mode.';
+                    v_erro_oracle := SQLERRM;
+                    RAISE err_nao_previsto;
+                WHEN UTL_FILE.invalid_operation THEN
+                    p_msg_retorno := 'Erro na criação do Arquivo - Invalid Operation.';
+                    v_erro_oracle := SQLERRM;
+                    RAISE err_nao_previsto;
+                WHEN UTL_FILE.invalid_filehandle THEN
+                    p_msg_retorno := 'Erro na criação do Arquivo - Invalid FilHandle.';
+                    v_erro_oracle := SQLERRM;
+                    RAISE err_nao_previsto;
+                WHEN UTL_FILE.write_error THEN
+                    p_msg_retorno := 'Erro na criação do Arquivo - Write Erro.';
+                    v_erro_oracle := SQLERRM;
+                    RAISE err_nao_previsto;
+                WHEN OTHERS THEN
+                    p_msg_retorno := 'Erro inesperado na criação do Arquivo - ' || SQLERRM;
+                    v_erro_oracle := SQLERRM;
+                    RAISE err_nao_previsto;
+            END;
+
+            v_posicao := 90;
+
+            v_linha := '';
+            --
+            v_linha := v_linha || 'NÚMERO DA PRÉVIA'                                                      || vseparador;
+            v_linha := v_linha || 'ARQUIVO'                                                               || vseparador;
+            v_linha := v_linha || 'TIPO DE DOCUMENTO'                                                     || vseparador;           
+            v_linha := v_linha || 'NOME BENEFICIÁRIO'                                                     || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA NOME BENEFICIÁRIO'                                        || vseparador;
+            v_linha := v_linha || 'NÚMERO DA CARTEIRINHA'                                                 || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA NÚMERO CARTEIRINHA'                                       || vseparador;
+            v_linha := v_linha || 'NOME DO MÉDICO/PROFISSIONAL DA SAÚDE'                                  || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA NOME DO MÉDICO/PROFISSIONAL DA SAÚDE'                     || vseparador;
+            v_linha := v_linha || 'CONSELHO'                                                              || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA CONSELHO'                                                 || vseparador;
+            v_linha := v_linha || 'Nº CONSELHO'                                                           || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA Nº CONSELHO'                                              || vseparador;
+            v_linha := v_linha || 'UF'                                                                    || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA UF'                                                       || vseparador;
+            v_linha := v_linha || 'CNPJ ou CPF'                                                           || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA CNPJ OU CPF'                                              || vseparador;
+            v_linha := v_linha || 'ESPECIALIDADE'                                                         || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA ESPECIALIDADE'                                            || vseparador;
+            v_linha := v_linha || 'TELEFONE PROFISSIONAL'                                                 || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA TELEFONE PROFISSIONAL'                                    || vseparador;
+            v_linha := v_linha || 'EMAIL PROFISSIONAL'                                                    || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA EMAIL PROFISSIONAL'                                       || vseparador;
+            v_linha := v_linha || 'ENDEREÇO DO CONSULTÓRIO/CLINICA'                                       || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA ENDEREÇO CONSULTÓRIO/CLINICA'                             || vseparador;
+            v_linha := v_linha || 'DIAGNÓSTICO'                                                           || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA DIAGNÓSTICO'                                              || vseparador;
+            v_linha := v_linha || 'CID10'                                                                 || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA   CID10'                                                  || vseparador;
+            v_linha := v_linha || 'DESCRIÇÃO DETALHADA DO DIGNÓSTICO'                                     || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA DESCRIÇÃO DETALHADA DIGNÓSTICO'                           || vseparador;
+            v_linha := v_linha || 'CÓDIGO TUSS'                                                           || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA  CÓDIGO TUSS'                                             || vseparador;
+            v_linha := v_linha || 'DESCRIÇÃO DO CÓDIGO TUSS  TUSS'                                        || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA DESCRIÇÃO CÓDIGO TUSS'                                    || vseparador;
+            v_linha := v_linha || 'QTDE SOLIC'                                                            || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA QTDE SOLIC'                                               || vseparador;
+            v_linha := v_linha || 'VALOR ESTIMADO'                                                        || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA VALOR ESTIMADO'                                           || vseparador;
+            v_linha := v_linha || 'EQUIPE MÉDICA'                                                         || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA EQUIPE MÉDICA'                                            || vseparador;
+            v_linha := v_linha || 'JUSTIFICATIVA CLINICA PARA REALIZAÇÃO DO PROCEDIMENTO'                 || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA JUSTIFICATIVA CLINICA PARA REALIZAÇÃO DO PROCEDIMENTO'    || vseparador;
+            v_linha := v_linha || 'DATA SUGERIDA PARA INTERNAÇÃO/DATA INICIO DO TRATAMENTO'               || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA DATA SUGERIDA PARA INTERNAÇÃO/DATA INICIO DO TRATAMENTO'  || vseparador;
+            v_linha := v_linha || 'CARÁTER/TIPO DE ATENDIMENTO'                                           || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA CARÁTER/TIPO DE ATENDIMENTO'                              || vseparador;
+            v_linha := v_linha || 'DATA DE SOLICITAÇÃO'                                                   || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA DATA DE SOLICITAÇÃO'                                      || vseparador;
+            v_linha := v_linha || 'ASSINATURA E CARIMBO DO MÉDICO/PROFISSIONAL'                           || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA ASSINATURA E CARIMBO DO MÉDICO/PROFISSIONAL'              || vseparador;
+            v_linha := v_linha || 'VALOR POR PROCEDIMENTO'                                                || vseparador;
+            v_linha := v_linha || 'TX CONFIANÇA  VALOR POR PROCEDIMENTO'                                  || vseparador;
+            v_linha := v_linha || vSeparador;
+            --
+            inclui_linha(v_arquivo,v_linha);
+
+            v_posicao := 100;
+
+            WHILE cur%FOUND
+            LOOP
+                v_linha := '';
+                v_linha := v_linha || replace(rs_entidade.num_reembolso, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nom_arq_anexo, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.tipo_documento, ';', '                             ')                  || vseparador;                
+                v_linha := v_linha || replace(rs_entidade.nome_beneficiario, ';', '                          ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_beneficiario_conf, ';', '                     ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.numero_carteira_beneficiario, ';', '               ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.numero_carteira_beneficiario_conf, ';', '          ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_medico, ';', '                                ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_medico_conf, ';', '                           ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.conselho, ';', '                                   ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.conselho_conf, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.numero_conselho, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.numero_conselho_conf, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.uf_conselho_executante, ';', '                     ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.uf_conselho_executante_conf, ';', '                ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.cpf_cnpj, ';', '                                   ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.cpf_cnpj_conf, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_especialidade, ';', '                         ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_especialidade_conf, ';', '                    ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.telefone_executante, ';', '                        ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.telefone_executante_conf, ';', '                   ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.email_executante, ';', '                           ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.email_executante_conf, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.endereco_consultorio, ';', '                       ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.endereco_consultorio_conf, ';', '                  ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_diagnostico, ';', '                           ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.nome_diagnostico_conf, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.cid10, ';', '                                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.cid10_conf, ';', '                                 ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.descricao_diagnostico, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.descricao_diagnostico_conf, ';', '                 ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.codigo_tuss, ';', '                                ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.codigo_tuss_conf, ';', '                           ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.descricao_codigo_tuss, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.descricao_codigo_tuss_conf, ';', '                 ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.qtde_material_solicitado, ';', '                   ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.qtde_material_solicitado_conf, ';', '              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.valor_estimado, ';', '                             ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.valor_estimado_conf, ';', '                        ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.equipe_medica, ';', '                              ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.equipe_medica_conf, ';', '                         ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.justificativa_clinica, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.justificativa_clinica_conf, ';', '                 ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.data_internacao_inicio_tratamento, ';', '          ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.data_internacao_inicio_tratamento_conf, ';', '     ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.tipo_atendimento, ';', '                           ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.tipo_atendimento_conf, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.data_solicitacao, ';', '                           ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.data_solicitacao_conf, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.assinatura_executante, ';', '                      ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.assinatura_executante_conf, ';', '                 ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.valor_procedimento, ';', '                         ')                  || vseparador;
+                v_linha := v_linha || replace(rs_entidade.valor_procedimento_conf, ';', '                    ')                  || vseparador;               
+             
+              
+               
+
+                inclui_linha (v_arquivo, v_linha);
+
+                FETCH cur INTO rs_entidade;
+            END LOOP;
+
+            -- Gerar footer
+            v_posicao := 110;
+
+            v_linha := '';
+            v_linha := v_linha || vseparador;
+
+            inclui_linha (v_arquivo, v_linha);
+            --
+            v_posicao := 120;
+
+            IF cur%ISOPEN
+            THEN
+                CLOSE cur;
+            END IF;
+
+            v_posicao := 130;
+
+            IF UTL_FILE.is_open (v_arquivo) THEN
+                UTL_FILE.fclose (v_arquivo);
+            END IF;
+            --
+            vTxtXml := '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+            vTxtXml := vTxtXml || '<consulta>';
+            vTxtXml := vTxtXml || '<NOME_ARQUIVO>'   || p_nome_arquivo            || '</NOME_ARQUIVO>';
+            vTxtXml := vTxtXml || '<CAMINHO>'        || v_caminho_le              || '</CAMINHO>';
+            vTxtXml := vTxtXml || '<COD_TIPO_MOV>'   || '220'                     || '</COD_TIPO_MOV>';
+            vTxtXml := vTxtXml || '<DT_INI_PERIODO>' || rs_filtros.dt_ini_periodo || '</DT_INI_PERIODO>';
+            vTxtXml := vTxtXml || '<DT_FIM_PERIODO>' || rs_filtros.dt_fim_periodo || '</DT_FIM_PERIODO>';
+            vTxtXml := vTxtXml || '</consulta>';
+            --
+            IMC_CONTROLE_ARQUIVO_LOG( p_cod_retorno     => p_cod_retorno
+                                    , p_msg_retorno     => p_msg_retorno
+                                    , p_cod_usuario     => p_cod_usuario
+                                    , p_xml_parametros  => vTxtXml
+                                    , p_versao          => 'N'
+                                    );
+            --
+            v_posicao := 140;
+            p_msg_retorno := 'Arquivo gerado com sucesso.<BR>' || '<a target=blank href="' || v_caminho_le || '/' || p_nome_arquivo || '" title="Clique aqui para abrir o arquivo">' || p_nome_arquivo || '</a>';
+            --p_cod_retorno := '0';
+
+        EXCEPTION
+            WHEN err_advertencia THEN
+                p_cod_retorno := '3';
+                TS_LOG_EXECUCAO('RBM_PREVIA_OCR_RELATORIO_REL', v_posicao, NULL, sqlerrm, 'Erro');
+                raise err_trata_erro;
+            WHEN err_previsto THEN
+                p_cod_retorno := '1';
+                RAISE err_trata_erro;
+            WHEN err_nao_previsto THEN
+                p_cod_retorno := '2';
+                RAISE err_trata_erro;
+            WHEN OTHERS THEN
+                p_msg_retorno := SQLERRM;
+                v_erro_oracle := SQLERRM;
+                p_cod_retorno := '2';
+                RAISE err_trata_erro;
+        END;
+    EXCEPTION
+        WHEN err_trata_erro THEN
+            IF cur%isopen THEN
+                CLOSE cur;
+            END IF;
+
+            IF UTL_File.IS_Open(v_arquivo) THEN
+                UTL_File.FClose(v_arquivo);
+            END IF;
+
+            TS_LOG_EXECUCAO('RBM_PREVIA_OCR_RELATORIO_REL', v_posicao, NULL, p_msg_retorno,'p_xml_parametros = '|| p_xml_parametros);
+    END;
+END;
+/
