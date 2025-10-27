@@ -1,125 +1,340 @@
 <%@ LANGUAGE="VBSCRIPT" %>
 <%
-'-----------------------------------------------------------
-'-	Cadastro Grupo Autoriza��o
-'-	Cria��o : 27/03/2025
-'-----------------------------------------------------------
+    '-----------------------------------------------------------
+    '-  Relatório OCR
+    '-  Autor: Avanade
+    '-  Criação: 17/03/2022
+    '-----------------------------------------------------------
 
-option explicit
+    option explicit
 
-dim txt_subtitulo, sCodRetorno, sMsgRetorno
+    dim txt_usuario, txt_senha, txt_ip, txt_modulo, cod_tipo_documento
+    dim txt_msg, txt_subtitulo
+    dim num_tabindex
+    dim sgl_area_abertura, cod_origem
+    dim oCombo
+    dim rsCombo
+    dim IdJOB
+    dim VetBotao(2)
+	dim htmlCombo, valorItem, textoItem
 
-server.ScriptTimeout = 1000000
+    IdJOB = "9208"
 
-dim xml 
-dim i
-dim sUsuario, sSenha, sIP, sModulo, sSistema
-dim qtd_submodalidade, ind_tipo_reembolso
-dim ind_acao, ind_tipo, ind_habilitado
+    txt_usuario = Session("ace_usuario")
+    txt_senha   = Session("ace_senha")
+    txt_ip      = Session("ace_ip")
+    txt_modulo  = Session("ace_modulo")
 
-sUsuario	        = Session("ace_usuario")
-sSenha		        = Session("ace_senha")
-sIP			        = Session("ace_ip")
-sModulo		        = Session("ace_modulo")
-sSistema	        = session("ace_sistema")
-txt_subtitulo		= Request.QueryString("PT")
-
-ind_acao 			= request("ind_acao")
-ind_tipo 			= request("ind_tipo")
-ind_tipo_reembolso  = request("ind_tipo_reembolso")
-qtd_submodalidade   = request("qtd_submodalidade")
-ind_habilitado		= "S"
-
-'----SUBMODALIDADES----
-
-xml = ""
-xml = xml & "<SUBMODALIDADE>"
-xml = xml & "<IND_ACAO>"    	   & ind_acao        	&"</IND_ACAO>"
-xml = xml & "<COD_USUARIO>" 	   & sUsuario        	& "</COD_USUARIO>"
-xml = xml & "<IND_TIPO>"    	   & ind_tipo        	& "</IND_TIPO>"
-xml = xml & "<IND_TIPO_REEMBOLSO>" & ind_tipo_reembolso & "</IND_TIPO_REEMBOLSO>"
-xml = xml & "<QTD_SUBMODALIDADE>"  & qtd_submodalidade  & "</QTD_SUBMODALIDADE>"
-
-for i = 1 to qtd_submodalidade
-	if request("nome_submodalidade_" & i ) <> "" then
-	
-		if request("ind_habilitado_" & i ) = "" then
-			ind_habilitado = "N"
-		end if
-	
-		xml = xml & "<DADOS_" & i&">"
-		xml = xml & "<IND_TIPO_SUBMODALIDADE_" & i&">" & request("ind_tipo_submodalidade_" & i ) & "</IND_TIPO_SUBMODALIDADE_" & i&">"
-		xml = xml & "<NOME_SUBMODALIDADE_" & i&">" & request("nome_submodalidade_" & i ) & "</NOME_SUBMODALIDADE_" & i&">"
-		'xml = xml & "<ORDEM_EXIBICAO_" & i&">" & request("ordem_exibicao_" & i ) & "</ORDEM_EXIBICAO_" & i&">"
-		xml = xml & "<DT_INICIO_" & i&">" & request("dt_inicio_" & i ) & "</DT_INICIO_" & i&">"
-		xml = xml & "<DT_FIM_" & i&">" & request("dt_fim_" & i ) & "</DT_FIM_" & i&">"
-		'xml = xml & "<IND_HABILITADO_" & i&">" & request("ind_habilitado_" & i ) & "</IND_HABILITADO_" & i&">"
-		xml = xml & "<IND_HABILITADO_" & i&">" & ind_habilitado & "</IND_HABILITADO_" & i&">"		
-		xml = xml & "<IND_ACAO_SUBMODALIDADE_" & i&">" & request("ind_acao_submodalidade_" & i ) & "</IND_ACAO_SUBMODALIDADE_" & i&">"
-		
-		'Response.Write "IND_TIPO_SUBMODALIDADE_: " & request("ind_tipo_submodalidade_" & i ) & " NOME_SUBMODALIDADE: " & request("nome_submodalidade_" & i ) & " IND_HABILITADO: " & ind_habilitado & " IND_ACAO_SUBMODALIDADE: " & request("ind_acao_submodalidade_" & i ) & "</br>"
-		'Response.End
-		
-		xml = xml & "</DADOS_" & i&">"
-		
-		ind_habilitado = "S"
-	end if
-next
-xml = xml & "</SUBMODALIDADE>"
-
-'Response.Write qtd_submodalidade
-'Response.End
-
-if Request.QueryString("ind_executando") = "S" then	
-
-    %>
-    <!--Include do recordset oracle-->
-    <!--#include file=..\..\gen\asp\gen0146a.asp-->
-    <!--#include file=..\..\gen\asp\gen0146b.asp-->
-    <%
-
-    Session("txt_msg")	= ""
-    session("pgm_retorno_erro") = ""
-    
-    Dim vet_PL(3, 4)
-
-    vet_PL(1, 1) = "OUT"
-    vet_PL(1, 2) = "adDouble"
-    vet_PL(1, 3) = "p_cod_retorno"
-    
-    vet_PL(2, 1) = "OUT"
-    vet_PL(2, 2) = "adVarChar"
-    vet_PL(2, 3) = "p_msg_retorno"
-
-    vet_PL(3, 1) = "IN"
-    vet_PL(3, 2) = "adVarChar"
-    vet_PL(3, 3) = "p_xml_parametros"
-    vet_PL(3, 4) = xml
-
-    on error resume next
-    
-    Call ExecutaPLOracle (	CStr(session("ace_usuario")),_					        CStr(session("ace_senha")),_					        CStr(session("ace_ip")),_					        CStr(session("ace_sistema")),_					        CStr(session("ace_modulo")),_
-					        "RB_PREVIA_REEMBOLSO.GravaPreviaSubmodalidade", _
-					        vet_PL, _
-					        false )
-   
-    FechaConexao()
-    
-    if err.number <> "0" then
-        sCodRetorno = "9"
-        sMsgRetorno = "Erro::" & replace(replace(replace(err.Description,"'",""),chr(13),"<BR>"),"""","")
-    else
-        sCodRetorno = vet_PL(1, 4)
-        sMsgRetorno = vet_PL(2, 4)
+    if trim(txt_modulo) = "" then
+        txt_modulo = Request.QueryString("pm")
+        Session("ace_modulo") = txt_modulo
     end if
-    on error goto 0
-    
-    'Response.Write "<BR>sCodRetorno=" & sCodRetorno
-    'Response.Write "<BR>sMsgRetorno=" & sMsgRetorno   
-    
-    session("txt_msg")     = sMsgRetorno
 
-    RESPONSE.Redirect "rbm1109a.asp?PT=" & txt_subtitulo
+    txt_msg       = Session("txt_msg")
+    txt_subtitulo = Request.QueryString("PT")
 
-end if
+    Session("txt_msg")     = ""    
+    session("pgm_retorno") = Request.ServerVariables("SCRIPT_NAME") & "?pt=" & txt_subtitulo
+
+    num_tabindex = 0
 %>
+
+<html>
+<head>
+<title><%=Application("app")%></title>
+<link href="\gen\css\css002.css" rel="stylesheet" type="text/css">
+
+<!-- CALENDARIO INICIO -->
+<link rel="stylesheet" type="text/css" media="all" href="\gen\css\calendar-green.css" title="green" />
+<script type="text/javascript" src="\gen\js\calendar.js"></script>
+<script type="text/javascript" src="\gen\js\calendar-br.js"></script>
+<script type="text/javascript" src="\gen\js\calendar-setup.js"></script>
+<!-- CALENDARIO FIM -->
+
+<!--INICIO BARRA DE PROGRESSO-->
+<script type="text/javascript" src="..\..\gen\js\waitbar.js"></script>
+<link rel="stylesheet" type="text/css" href="\gen\css\progbar.css">
+<!--FIM BARRA DE PROGRESSO-->
+
+<!--#include file=..\..\gen\asp\gen0202a.asp-->
+<!--#include file=..\..\gen\inc\inc0000.asp-->
+<!--#include file=..\..\gen\inc\inc0001.asp-->
+<!--#include file=..\..\gen\inc\inc0002.asp-->
+
+<script src="../../gen/inc/inc0000_new.js" type="text/javascript"></script>
+
+<script language="JavaScript">
+
+function ExibeData() {
+    //Se Solicitação está selecionado
+    if (document.form01.p_tipo_data[0].checked == true) {
+        colIndPag.style.display = "none";
+        colIndPre.style.display = "none";
+        colIndSol.style.display = "";
+    } else if (document.form01.p_tipo_data[1].checked == true) {
+        colIndSol.style.display = "none";
+        colIndPag.style.display = "none";
+        colIndPre.style.display = "";
+    } else {
+        colIndSol.style.display = "none";
+        colIndPre.style.display = "none";
+        colIndPag.style.display = "";
+    }
+    
+    document.form01.p_dt_ini.value = "";
+    document.form01.p_dt_fim.value = "";
+}
+
+
+
+function ValidaForm() {
+
+/*
+
+    if (document.form01.cod_unidade_inc.value == '') {
+        alert('Filial/Unidade deve ser informada!');
+        document.form01.cod_unidade_inc.focus();
+        return false;
+    }
+*/
+    if ( ( document.form01.p_dt_ini.value == '' ) || ( document.form01.p_dt_fim.value == '' ) ) {
+        alert('Período deve ser informado!');
+        document.form01.p_dt_ini.focus();
+        return false;
+    }
+	
+    document.form01.p_nome_situacao.value = document.getElementById('p_ind_situacao').options[document.getElementById('p_ind_situacao').selectedIndex].text;
+	 
+    return true;
+}
+
+function exibeAgencia(){
+    cod_origem = document.form01.cod_origem.value;
+    
+    if (cod_origem == 1){
+        document.getElementById('trAgencia').style.display='';
+    }else{
+        document.form01.sgl_area_abertura.value = '';
+        document.getElementById('trAgencia').style.display='none';
+    }
+}
+
+function acao_continuar() {
+	
+    if (ValidaForm()) {
+        MostrarWait();
+        document.form01.action = 'rbm1127b.asp?PT=<%=txt_subtitulo%>';
+        document.form01.submit();
+    }
+}
+
+function AbreTelaFila() {
+    document.form01.action = '../../gen/asp/gen0083a.asp?PT=<%=txt_subtitulo%>&IdJOB=<%=IdJOB%>';
+    document.form01.submit();
+}
+
+function reexecute() {
+    document.form01.action = '<%=session("pgm_retorno")%>';
+    document.form01.submit();
+}
+
+</script>
+
+</head>
+<body>
+
+<%AbreTable()%>
+<font class="subtitulos"><%=txt_subtitulo%></font>
+<%FechaTable()%>
+
+<%AbreTable()%>
+<div id="txt_msg" class="msg" align="center"><%=txt_msg%></div>
+<form method="post" name="form01">
+<%Call SetWaitBar()%><br>
+
+<table width="100%" align="center">
+
+    <tr>
+        <td width="20%" class="label_right">&nbsp;Origem Filial/Unidade:&nbsp;</td>
+        <td>
+            <input type="radio" name="p_ind_tipo_inspetoria" value="C" tabindex="1" checked>
+            &nbsp;<font class="label_left">Contrato</font>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <input type="radio" name="p_ind_tipo_inspetoria" value="A" tabindex="1">
+            &nbsp;<font class="label_left">Registro de Abertura</font>
+        </td>
+    </tr>
+
+    <!--Monta campos Filial, Unidade e Operadora -->
+	
+    <!--#include file=..\..\gen\inc\inc0078.asp-->
+	
+	    <!--Tipo de Documento--> 
+<tr>
+    <td class="label_right">&nbsp;Tipo de documento:&nbsp;</td>
+    <td nowrap align="left">
+        <%
+        set rsCombo = retornaCursor("rb_previa_reembolso.RetornaCursor", _
+                                    "previa_ocr_tipo_documento", _
+                                    "cod_tipo_documento", _
+                                    "nom_tipo_documento", _
+                                    " where ind_ativo = 'S' ", _
+                                    "order by nom_tipo_documento")
+        response.write montaCombo(rsCombo, "cod_tipo_documento", cod_tipo_documento, "exibeTipoArquivo()", "multiple size='4'")
+        %>
+    </td>
+</tr>
+
+
+
+    <tr>
+        <td nowrap class="label_right">Origem da solicitação:&nbsp;</td>
+        <td>
+           <%
+            set rsCombo = retornaCursor("rb_reembolso.RetornaCursor","origem_reembolso","cod_origem","nome_origem"," where ind_reembolso = 'S' ", "order by nome_origem")
+            response.write montaCombo(rsCombo, "cod_origem", cod_origem, "exibeAgencia()", "")
+           %>
+        </td>
+    </tr>
+
+    <tr id="trAgencia" style="display:'none'"> 
+       <td nowrap class="label_right">Agência atendimento abertura&nbsp;</td>
+       <td>
+          <%
+            set rsCombo = retornaCursor("rb_reembolso.RetornaCursor","area_usuario au","au.sgl_area","au.nom_area","where au.ind_agencia_atendimento = 'S'", "")  
+            response.write montaCombo(rsCombo, "sgl_area_abertura", sgl_area_abertura, "", "disabled")
+          %>
+       </td>
+    </tr>  
+
+    <tr>
+        <td nowrap class="label_right">Modalidade do reembolso:&nbsp;</td>
+        <td>
+            <%
+            set rsCombo = retornaCursor("rb_reembolso.RetornaCursor","tipo_reembolso","ind_tipo_reembolso","nome_tipo_reembolso","", "order by ind_tipo_reembolso")
+            response.write montaCombo(rsCombo, "ind_tipo_reembolso", "", "", "N")
+            %>
+        </td>
+    </tr>
+
+    <!--Tipo Data-->      
+    <tr>
+        <td width="20%" class="label_right">&nbsp;Tipo Data:&nbsp;</td>
+        <td>                                                                                                         
+            <input type="radio" name="p_tipo_data" value="SO" onClick="javascript:ExibeData();" tabindex="1" checked />
+            &nbsp;<font class="label_left">Solicitação</font>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <input type="radio" name="p_tipo_data" value="PP" onClick="javascript:ExibeData();" tabindex="1" />
+            &nbsp;<font class="label_left">Provável Análise</font>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <input type="radio" name="p_tipo_data" value="PG" onClick="javascript:ExibeData();" tabindex="1" />
+            &nbsp;<font class="label_left">Análise</font>
+        </td>
+    </tr>
+
+    <!--Período-->
+    <tr>
+        <td width="20%" class="label_right" id="colIndSol">&nbsp;Data de Solicitação:&nbsp;</td>
+        <td width="20%" class="label_right" id="colIndPre" style="display:none">&nbsp;Data Provável da Análise:&nbsp;</td>
+        <td width="20%" class="label_right" id="colIndPag" style="display:none">&nbsp;Data da Análise:&nbsp;</td>
+        <td colspan="3">
+            <input type="text" name="p_dt_ini" value="" size="8" maxlength="10" tabindex="<%=cInt(num_tabindex)+1%>" onKeyPress ="MascData('dd/mm/yyyy')">
+            <img src="/gen/img/img.gif" id="img_pDtIni" style="cursor:pointer; border:1px solid red;" title="Selecionar data" onmouseover="this.style.background='red';" onmouseout="this.style.background=''" />
+            <font face="arial" size="1" color=red>&nbsp(dd/mm/aaaa)</font>
+
+            &nbsp;até&nbsp;
+
+            <%num_tabindex = cint(num_tabindex) + 1%>
+            <input type="text" name="p_dt_fim" value="" size="8" maxlength="10" tabindex="<%=cInt(num_tabindex)+1%>" onKeyPress ="MascData('dd/mm/yyyy')">
+            <img src="/gen/img/img.gif" id="img_pDtFim" style="cursor:pointer; border:1px solid red;" title="Selecionar data" onmouseover="this.style.background='red';" onmouseout="this.style.background=''" />
+            <font face="arial" size="1" color=red>&nbsp(dd/mm/aaaa)</font>
+        </td>
+    </tr>
+
+    <!--Situação-->
+    <tr>
+        <td width="20%" class="label_right">&nbsp;Situação da Prévia:&nbsp;</td>
+        <td colspan="3">
+            <%SET OCOMBO = SERVER.CREATEOBJECT("TSGEN0080.COMBOGEN")
+            'oCombo.TXTTABELA     = "situacao_remessa"
+            oCombo.TXTTABELA     = "ts.situacao_reembolso"
+            
+            'oCombo.TXTCAMPOVALUE = "distinct tipo_situacao"
+            oCombo.TXTCAMPOVALUE = "cod_situacao"
+            oCombo.TXTCAMPODESC  = "nome_situacao"
+            
+            oCombo.TABORDER      = cInt(num_tabindex)+1
+            oCombo.ORDERBY       = "ORDER BY nome_situacao "
+            oCombo.NOMECOMBO     = "p_ind_situacao"
+            'oCombo.whereclause   = " Where ind_uso = 'B' and tipo_situacao is not null  "
+                                                        
+            oCombo.VALOR         = "" 
+            oCombo.Evento        = ""
+            oCombo.MultiSelect            = "N"
+
+            'oCombo.CampoListaValores    = "tipo_situacao"
+
+            oCombo.TabelaListaValores    = ""
+            oCombo.FiltroListaValores    = ""
+                    
+            oCombo.Desabilitado = false
+            CALL OCOMBO.MONTACOMBO(CSTR(TXT_USUARIO), CSTR(txt_senha), CSTR(txt_ip), CSTR(session("ace_sistema")), CSTR(txt_modulo))%>
+        </td>
+    </tr>  
+</table>
+<input type="hidden" name="p_nome_situacao" value="">
+<input type="hidden" name="IdJOB" value="<%=IdJOB%>">
+</form>
+<%
+  VetBotao(2) = "AbreTelaFila()|Botao.ico|Pesquisar Fila de Execução"
+  Session("VetBotaoExtra") = VetBotao
+  'VOLTAR/CONTINUAR/LIMPAR/INCLUIR/ALTERAR/EXCLUIR/EXECUTAR/POPUP
+  Call MontaToolbar("N","S","S","N","N","N","N","N") 
+  
+  FechaTable()
+%>
+<script language=javascript>
+    //CALENDARIO INICIO
+    Calendar.setup({
+        inputField     :    "p_dt_ini",
+        ifFormat       :    "%d/%m/%Y",
+        button         :    "img_pDtIni",
+        align          :    "Tl",
+        singleClick    :    true
+    });
+    Calendar.setup({
+        inputField     :    "p_dt_fim",
+        ifFormat       :    "%d/%m/%Y",
+        button         :    "img_pDtFim",
+        align          :    "Tl",
+        singleClick    :    true
+    });
+    //CALENDARIO FIM
+</script>
+<%
+function montaCombo(rsCombo, nome, valor, onChange, txtReadOnly)
+
+   dim strCombo
+
+   strCombo = ""
+
+   strCombo = "<select name='" & nome & "' onchange='" & onChange & "' tabindex=1 " & txtReadOnly & ">"
+   if nome <> "cod_tipo_documento" then
+		strCombo = strCombo & "<option></option>" & Chr(13) & Chr(10)
+   end if 
+   
+   do while not rsCombo.eof
+      if cstr(valor) = cstr(rsCombo(0)) then
+         strCombo = strCombo & "<option value=" & rsCombo(0) & " selected>" & rsCombo(1) & "</option>" & Chr(13) & Chr(10)
+      else
+         strCombo = strCombo & "<option value=" & rsCombo(0) & ">" & rsCombo(1) & "</option>" & Chr(13) & Chr(10)
+      end if
+      rsCombo.movenext
+   loop
+
+   strCombo = strCombo & "</select>" & Chr(13) & Chr(10)
+   montaCombo = strCombo
+end function
+%>
+</body>
+</html>
