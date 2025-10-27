@@ -85,18 +85,14 @@ function ExibeData() {
     document.form01.p_dt_fim.value = "";
 }
 
-
-
 function ValidaForm() {
-
-/*
-
+    /*
     if (document.form01.cod_unidade_inc.value == '') {
         alert('Filial/Unidade deve ser informada!');
         document.form01.cod_unidade_inc.focus();
         return false;
     }
-*/
+    */
     if ( ( document.form01.p_dt_ini.value == '' ) || ( document.form01.p_dt_fim.value == '' ) ) {
         alert('Período deve ser informado!');
         document.form01.p_dt_ini.focus();
@@ -109,7 +105,7 @@ function ValidaForm() {
 }
 
 function exibeAgencia(){
-    cod_origem = document.form01.cod_origem.value;
+    var cod_origem = document.form01.cod_origem.value;
     
     if (cod_origem == 1){
         document.getElementById('trAgencia').style.display='';
@@ -119,9 +115,24 @@ function exibeAgencia(){
     }
 }
 
+/* === NOVO: captura os NOMES selecionados do Tipo de Documento e coloca no hidden p_nom_tipo_documento === */
+function preencherNomeTipoDocumento() {
+    var sel = document.form01.cod_tipo_documento; // select múltiplo
+    if (!sel) return;
+    var textos = [];
+    for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].selected) {
+            textos.push(sel.options[i].text);
+        }
+    }
+    // separador seguro
+    document.form01.p_nom_tipo_documento.value = textos.join('|');
+}
+
 function acao_continuar() {
-	
     if (ValidaForm()) {
+        // garante que os NOMES de tipo de documento sejam enviados junto
+        preencherNomeTipoDocumento();
         MostrarWait();
         document.form01.action = 'rbm1127b.asp?PT=<%=txt_subtitulo%>';
         document.form01.submit();
@@ -169,23 +180,21 @@ function reexecute() {
 	
     <!--#include file=..\..\gen\inc\inc0078.asp-->
 	
-	    <!--Tipo de Documento--> 
-<tr>
-    <td class="label_right">&nbsp;Tipo de documento:&nbsp;</td>
-    <td nowrap align="left">
-        <%
-        set rsCombo = retornaCursor("rb_previa_reembolso.RetornaCursor", _
-                                    "previa_ocr_tipo_documento", _
-                                    "cod_tipo_documento", _
-                                    "nom_tipo_documento", _
-                                    " where ind_ativo = 'S' ", _
-                                    "order by nom_tipo_documento")
-        response.write montaCombo(rsCombo, "cod_tipo_documento", cod_tipo_documento, "exibeTipoArquivo()", "multiple size='4'")
-        %>
-    </td>
-</tr>
-
-
+    <!--Tipo de Documento--> 
+    <tr>
+        <td class="label_right">&nbsp;Tipo de documento:&nbsp;</td>
+        <td nowrap align="left">
+            <%
+            set rsCombo = retornaCursor("rb_previa_reembolso.RetornaCursor", _
+                                        "previa_ocr_tipo_documento", _
+                                        "cod_tipo_documento", _
+                                        "nom_tipo_documento", _
+                                        " where ind_ativo = 'S' ", _
+                                        "order by nom_tipo_documento")
+            response.write montaCombo(rsCombo, "cod_tipo_documento", cod_tipo_documento, "exibeTipoArquivo()", "multiple size='4'")
+            %>
+        </td>
+    </tr>
 
     <tr>
         <td nowrap class="label_right">Origem da solicitação:&nbsp;</td>
@@ -282,8 +291,13 @@ function reexecute() {
         </td>
     </tr>  
 </table>
+
+<!-- HIDDENS -->
 <input type="hidden" name="p_nome_situacao" value="">
 <input type="hidden" name="IdJOB" value="<%=IdJOB%>">
+<!-- NOVO: os N O M E S dos tipos de documento selecionados (separados por "|") -->
+<input type="hidden" name="p_nom_tipo_documento" value="">
+
 </form>
 <%
   VetBotao(2) = "AbreTelaFila()|Botao.ico|Pesquisar Fila de Execução"
