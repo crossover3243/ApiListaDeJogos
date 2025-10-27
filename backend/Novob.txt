@@ -208,19 +208,15 @@ AS
                     from table(cast(top_utl_padrao.split(rs_filtros.cod_operadora, ',') as ts.lst_varchar_4k)) u ))
                 
                 
-                AND (
+          AND (
   NVL(rs_filtros.TIPO_DOCUMENTO, '0') = '0'
-  OR EXISTS ( -- por NOME
-       SELECT 1
+  OR TO_NUMBER(ptd.cod_tipo_documento) IN (
+       SELECT TO_NUMBER(TRIM(u.column_value))
          FROM TABLE(CAST(top_utl_padrao.split(rs_filtros.TIPO_DOCUMENTO, ',') AS ts.lst_varchar_4k)) u
-        WHERE UPPER(TRIM(ptd.nom_tipo_documento)) = UPPER(TRIM(u.column_value))
-      )
-  OR ptd.cod_tipo_documento IN ( -- por CÓDIGO
-       SELECT TO_NUMBER(u.column_value)
-         FROM TABLE(CAST(top_utl_padrao.split(rs_filtros.TIPO_DOCUMENTO, ',') AS ts.lst_varchar_4k)) u
-        WHERE REGEXP_LIKE(TRIM(u.column_value), '^\d+$')
+        WHERE REGEXP_LIKE(TRIM(u.column_value), '^\d+$') -- evita ORA-01722
       )
 )
+
 
                         
                 and (nvl(rs_filtros.COD_ORIGEM,0) = 0 or pr.cod_origem = rs_filtros.COD_ORIGEM)
