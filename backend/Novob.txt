@@ -27,7 +27,7 @@ AS
                         
          num_reembolso                                                    ts.rbm_previa_ocr_documento.num_reembolso%type
         ,nom_arq_anexo                                                    ts.reembolso_previa_anexo.nom_arq_anexo%type
-        ,nom_tipo_documento                                                   ts.rbm_tipo_anexo_previa.nom_tipo_anexo%type
+        ,nome_tipo_documento_var                                          ts.rbm_tipo_anexo_previa.nom_tipo_anexo%type
         ,nome_beneficiario                                                ts.rbm_previa_ocr_documento.nome_beneficiario%type
         ,nome_beneficiario_conf                                           ts.rbm_previa_ocr_documento.nome_beneficiario_conf%type
         ,numero_carteira_beneficiario                                     ts.rbm_previa_ocr_documento.numero_carteira_beneficiario%type
@@ -194,7 +194,7 @@ AS
       from    ts.rbm_previa_ocr_documento p
       join    ts.reembolso_previa_anexo ra on ra.num_reembolso = p.num_reembolso and ra.nom_arq_anexo = p.nom_arq_anexo
       join    ts.pedido_reembolso_previa pr on pr.num_reembolso = p.num_reembolso
-      join    ts.previa_ocr_tipo_documento ptd on ptd.cod_tipo_documento = p.tipo_documento
+      JOIN    ts.previa_ocr_tipo_documento ptd ON p.tipo_documento = ptd.cod_tipo_documento
             where
                 --Origem Filial/Unidade
                      (nvl(rs_filtros.cod_inspetoria,'0') = '0' or
@@ -207,9 +207,11 @@ AS
                 (select /*+cardinality(u,1)*/ to_number(u.column_value)                                        
                     from table(cast(top_utl_padrao.split(rs_filtros.cod_operadora, ',') as ts.lst_varchar_4k)) u ))
                 
-                 and (nvl(rs_filtros.TIPO_DOCUMENTO, '0') = '0'or (ptd.cod_tipo_documento) in 
-                (select (trim(u.column_value))
-                    from table(cast(top_utl_padrao.split(rs_filtros.tipo_documento, ',') as ts.lst_varchar_4k)) u))
+                
+                 AND (nvl(rs_filtros.TIPO_DOCUMENTO, '0') = '0' OR ptd.cod_tipo_documento IN 
+                 (SELECT to_number(u.column_value)
+                    FROM table(cast(top_utl_padrao.split(rs_filtros.tipo_documento, ',') AS ts.lst_varchar_4k)) u))
+
                         
                 and (nvl(rs_filtros.COD_ORIGEM,0) = 0 or pr.cod_origem = rs_filtros.COD_ORIGEM)
                 and (nvl(rs_filtros.COD_MODALIDADE,0) = 0 or pr.ind_tipo_reembolso = rs_filtros.COD_MODALIDADE)
@@ -400,7 +402,7 @@ BEGIN
                 v_linha := '';
                 v_linha := v_linha || replace(rs_entidade.num_reembolso, ';', '                              ')                  || vseparador;
                 v_linha := v_linha || replace(rs_entidade.nom_arq_anexo, ';', '                              ')                  || vseparador;
-                v_linha := v_linha || replace(rs_entidade.nom_tipo_documento, ';', '                             ')                  || vseparador;                
+                v_linha := v_linha || replace(rs_entidade.nome_tipo_documento_var, ';', '                             ')                  || vseparador;                
                 v_linha := v_linha || replace(rs_entidade.nome_beneficiario, ';', '                          ')                  || vseparador;
                 v_linha := v_linha || replace(rs_entidade.nome_beneficiario_conf, ';', '                     ')                  || vseparador;
                 v_linha := v_linha || replace(rs_entidade.numero_carteira_beneficiario, ';', '               ')                  || vseparador;
